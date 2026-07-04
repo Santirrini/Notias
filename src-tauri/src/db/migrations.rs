@@ -2,6 +2,11 @@ use crate::error::{AppError, AppResult};
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 
+// ponytail: compile-time enumeration so production bundles (no migrations/ on disk) still apply.
+// When adding a new migration: append its number here, add an `include_str!` arm in `run()`,
+// and add the SQL file under migrations/.
+const LATEST_VERSION: i64 = 1;
+
 pub fn run(conn: &Connection) -> AppResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
@@ -12,7 +17,7 @@ pub fn run(conn: &Connection) -> AppResult<()> {
     let current: i64 = conn
         .query_row("SELECT COALESCE(MAX(version), 0) FROM schema_version", [], |r| r.get(0))?;
 
-    for version in (current + 1)..=latest_version() {
+    for version in (current + 1)..=LATEST_VERSION {
         let sql = match version {
             1 => include_str!("../../migrations/0001_initial.sql"),
             _ => return Err(AppError::Config(format!("unknown migration {version}"))),
@@ -26,24 +31,6 @@ pub fn run(conn: &Connection) -> AppResult<()> {
         tx.commit()?;
     }
     Ok(())
-}
-
-fn latest_version() -> i64 {
-    // ponytail: simple linear scan, fine for <50 migrations. Replace with build-script
-    // codegen if migration count grows.
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-    let mut max = 0;
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(e) => e,
-        Err(_) => return 0,
-    };
-    for entry in entries.flatten() {
-        let s = entry.file_name().to_string_lossy().to_string();
-        if let Some(v) = s.split('_').next().and_then(|x| x.parse::<i64>().ok()) {
-            if v > max { max = v; }
-        }
-    }
-    max
 }
 
 pub fn db_hash(conn: &Connection) -> AppResult<String> {

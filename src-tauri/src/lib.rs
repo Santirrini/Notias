@@ -24,7 +24,7 @@ pub fn run() {
         .ok();
     let paths = AppPaths::new().expect("paths");
     let conn = db::open(&paths).expect("db open");
-    let report = db::verify(&paths.db_file, &paths.meta_file, &conn).expect("verify");
+    let report = db::verify(&paths.meta_file, &conn).expect("verify");
     if matches!(report, db::IntegrityReport::Ok | db::IntegrityReport::Fresh) {
         let version: i64 = conn.query_row("SELECT COALESCE(MAX(version), 0) FROM schema_version", [], |r| r.get(0)).unwrap();
         let _ = db::write_meta(&paths.meta_file, &db::migrations::db_hash(&conn).unwrap(), version);

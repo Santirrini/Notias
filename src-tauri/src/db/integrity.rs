@@ -11,7 +11,7 @@ pub fn write_meta(meta_path: &Path, db_hash: &str, schema_version: i64) -> AppRe
     Ok(())
 }
 
-pub fn verify(_db_path: &Path, meta_path: &Path, conn: &Connection) -> AppResult<IntegrityReport> {
+pub fn verify(meta_path: &Path, conn: &Connection) -> AppResult<IntegrityReport> {
     let actual = super::migrations::db_hash(conn)?;
     let report = if !meta_path.exists() {
         IntegrityReport::Fresh
@@ -39,7 +39,7 @@ mod tests {
     fn fresh_when_no_meta() {
         let dir = tempdir().unwrap();
         let conn = Connection::open_in_memory().unwrap();
-        let r = verify(&dir.path().join("x.db"), &dir.path().join("notias.meta"), &conn).unwrap();
+        let r = verify(&dir.path().join("notias.meta"), &conn).unwrap();
         assert!(matches!(r, IntegrityReport::Fresh));
     }
 }

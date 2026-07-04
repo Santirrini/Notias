@@ -22,7 +22,7 @@ fn main() {
 
     db::write_meta(&paths.meta_file, &db::migrations::db_hash(&conn).unwrap(), v)
         .expect("meta write");
-    let report = db::verify(&paths.db_file, &paths.meta_file, &conn).expect("verify");
+    let report = db::verify(&paths.meta_file, &conn).expect("verify");
     assert!(matches!(report, db::IntegrityReport::Ok), "expected Ok, got {:?}", report);
 
     println!("selfcheck OK (schema v{}, data_dir={:?})", v, paths.data_dir);

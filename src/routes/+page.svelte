@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { ping } from "$lib/ipc";
+  import type { WireError } from "$lib/types";
 
   let result = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -9,7 +10,7 @@
     try {
       result = await ping();
     } catch (e) {
-      error = (e as { message: string }).message;
+      error = (e as WireError).message;
     }
   });
 </script>

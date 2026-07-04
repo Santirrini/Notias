@@ -8,7 +8,6 @@ pub use model::{Note, NoteSummary, Frontmatter};
 use crate::AppState;
 use crate::error::{AppError, AppResult};
 use crate::notes::{index, model::Note, store, wikilinks};
-use std::sync::Mutex;
 use tauri::State;
 use ulid::Ulid;
 

@@ -1,6 +1,8 @@
 pub mod migrations;
 pub mod paths;
 
+pub use paths::AppPaths;
+
 use rusqlite::Connection;
 use crate::error::AppResult;
 

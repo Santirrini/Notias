@@ -1,7 +1,9 @@
+pub mod integrity;
 pub mod migrations;
 pub mod paths;
 
 pub use paths::AppPaths;
+pub use integrity::{write_meta, verify, IntegrityReport};
 
 use rusqlite::Connection;
 use crate::error::AppResult;

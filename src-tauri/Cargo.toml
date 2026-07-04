@@ -1,8 +1,8 @@
 [package]
 name = "notias"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Notias — local-first Markdown notes with integrated AI"
+authors = ["Notias contributors"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,6 +20,24 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+# DB
+rusqlite = { version = "0.31", features = ["bundled"] }
+sqlite-vec = "0.1"
+# serde
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
+serde_yaml = "0.9"
+# util
+directories = "5"
+ulid = "1"
+thiserror = "1"
+anyhow = "1"
+sha2 = "0.10"
+hex = "0.4"
+# logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# secrets
+keyring = "2"
+# time
+time = { version = "0.3", features = ["formatting"] }

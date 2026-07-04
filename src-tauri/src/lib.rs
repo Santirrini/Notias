@@ -12,6 +12,7 @@ use std::sync::Mutex;
 pub struct AppState {
     pub paths: AppPaths,
     pub db: Mutex<rusqlite::Connection>,
+    pub recovery_required: bool,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -25,19 +26,22 @@ pub fn run() {
     let paths = AppPaths::new().expect("paths");
     let conn = db::open(&paths).expect("db open");
     let report = db::verify(&paths.meta_file, &conn).expect("verify");
-    if matches!(report, db::IntegrityReport::Ok | db::IntegrityReport::Fresh) {
+    let recovery_required = matches!(report, db::IntegrityReport::Mismatch);
+    if !recovery_required {
         let version: i64 = conn.query_row("SELECT COALESCE(MAX(version), 0) FROM schema_version", [], |r| r.get(0)).unwrap();
         let _ = db::write_meta(&paths.meta_file, &db::migrations::db_hash(&conn).unwrap(), version);
+    } else {
+        tracing::error!("db integrity mismatch; recovery screen will offer rebuild");
     }
-    // ponytail: Mismatch path is wired in Phase 1 (UI recovery screen). For now log and continue.
 
-    let state = AppState { paths, db: Mutex::new(conn) };
+    let state = AppState { paths, db: Mutex::new(conn), recovery_required };
     tracing::info!("notias starting; data_dir={:?}", state.paths.data_dir);
 
     tauri::Builder::default()
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::ping,
+            commands::recovery_required,
             notes::list_notes,
             notes::get_note,
             notes::create_note,

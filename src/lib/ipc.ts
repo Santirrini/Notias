@@ -18,3 +18,4 @@ export const updateNote = (id: string, patch: { title?: string; body?: string })
 export const deleteNote = (id: string) => invoke<void>("delete_note", { id });
 export const searchNotes = (q: string) => invoke<string[]>("search_notes", { q });
 export const rebuildIndex = () => invoke<number>("rebuild_index");
+export const recoveryRequired = () => invoke<boolean>("recovery_required");

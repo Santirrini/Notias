@@ -1,5 +1,5 @@
 use directories::ProjectDirs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct AppPaths {
     pub data_dir: PathBuf,

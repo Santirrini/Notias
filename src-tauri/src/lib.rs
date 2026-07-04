@@ -16,6 +16,12 @@ pub struct AppState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| "notias_lib=info".into()))
+        .with_target(false)
+        .try_init()
+        .ok();
     let paths = AppPaths::new().expect("paths");
     let conn = db::open(&paths).expect("db open");
     let report = db::verify(&paths.db_file, &paths.meta_file, &conn).expect("verify");
@@ -26,6 +32,7 @@ pub fn run() {
     // ponytail: Mismatch path is wired in Phase 1 (UI recovery screen). For now log and continue.
 
     let state = AppState { paths, db: Mutex::new(conn) };
+    tracing::info!("notias starting; data_dir={:?}", state.paths.data_dir);
 
     tauri::Builder::default()
         .manage(state)

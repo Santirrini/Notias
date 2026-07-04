@@ -34,7 +34,7 @@ impl Serialize for AppError {
         let code = match self {
             AppError::Io(_) => "io",
             AppError::Db(_) => "db",
-            AppError::Json(_) | AppError::Yaml(_) => "serialization",
+            AppError::Json(_) | AppError::Yaml(_) => "serialization", // ponytail: prefix-free wire codes; the message string carries the variant name.
             AppError::Config(_) => "config",
             AppError::NotFound(_) => "not_found",
             AppError::Invalid(_) => "invalid",

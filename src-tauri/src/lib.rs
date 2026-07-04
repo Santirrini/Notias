@@ -36,7 +36,16 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(state)
-        .invoke_handler(tauri::generate_handler![commands::ping])
+        .invoke_handler(tauri::generate_handler![
+            commands::ping,
+            notes::list_notes,
+            notes::get_note,
+            notes::create_note,
+            notes::update_note,
+            notes::delete_note,
+            notes::search_notes,
+            notes::rebuild_index,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

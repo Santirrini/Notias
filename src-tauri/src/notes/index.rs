@@ -27,23 +27,33 @@ pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
     Ok(())
 }
 
-pub fn list(conn: &Connection, query: Option<&str>, tag: Option<&str>) -> AppResult<Vec<NoteSummary>> {
+pub fn list(conn: &Connection, tag: Option<&str>) -> AppResult<Vec<NoteSummary>> {
+    // ponytail: title-filter is done client-side in NoteTree (cheap; in-memory). The DB returns
+    // the most-recently-updated 200 live notes; if a tag is provided we filter to notes tagged
+    // with it. Tag filtering for chat RAG adds a `tags` field via LEFT JOIN + GROUP_CONCAT below.
     let mut sql = String::from(
-        "SELECT n.id, n.title, n.updated FROM notes n WHERE n.deleted_at IS NULL"
+        "SELECT n.id, n.title, n.updated, COALESCE(GROUP_CONCAT(t.tag, ','), '') \
+         FROM notes n LEFT JOIN note_tags t ON t.note_id = n.id WHERE n.deleted_at IS NULL"
     );
     let mut binds: Vec<String> = vec![];
-    if let Some(t) = tag {
-        sql.push_str(" AND EXISTS (SELECT 1 FROM note_tags t WHERE t.note_id = n.id AND t.tag = ?)");
-        binds.push(t.into());
+    if let Some(tag_val) = tag {
+        sql.push_str(" AND EXISTS (SELECT 1 FROM note_tags t2 WHERE t2.note_id = n.id AND t2.tag = ?)");
+        binds.push(tag_val.into());
     }
-    sql.push_str(" ORDER BY n.updated DESC LIMIT 200");
+    sql.push_str(" GROUP BY n.id ORDER BY n.updated DESC LIMIT 200");
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(binds.iter()), |r| {
+        let tags_csv: String = r.get(3)?;
+        let tags: Vec<String> = if tags_csv.is_empty() {
+            vec![]
+        } else {
+            tags_csv.split(',').map(|s| s.to_string()).collect()
+        };
         Ok(NoteSummary {
             id: r.get(0)?,
             title: r.get(1)?,
             updated: r.get(2)?,
-            tags: vec![], // ponytail: tags loaded on demand; full list join deferred to chat RAG.
+            tags,
         })
     })?;
     Ok(rows.filter_map(Result::ok).collect())

@@ -9,8 +9,8 @@ export async function ping(): Promise<string> {
   }
 }
 
-export const listNotes = (query?: string, tag?: string) =>
-  invoke<NoteSummary[]>("list_notes", { query, tag });
+export const listNotes = (tag?: string) =>
+  invoke<NoteSummary[]>("list_notes", { tag });
 export const getNote = (id: string) => invoke<Note>("get_note", { id });
 export const createNote = (title: string) => invoke<Note>("create_note", { title });
 export const updateNote = (id: string, patch: { title?: string; body?: string }) =>

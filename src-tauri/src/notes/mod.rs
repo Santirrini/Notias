@@ -12,9 +12,9 @@ use tauri::State;
 use ulid::Ulid;
 
 #[tauri::command]
-pub fn list_notes(query: Option<String>, tag: Option<String>, state: State<'_, AppState>) -> AppResult<Vec<NoteSummary>> {
+pub fn list_notes(tag: Option<String>, state: State<'_, AppState>) -> AppResult<Vec<NoteSummary>> {
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
-    index::list(&conn, query.as_deref(), tag.as_deref())
+    index::list(&conn, tag.as_deref())
 }
 
 #[tauri::command]
@@ -81,6 +81,10 @@ pub fn search_notes(q: String, state: State<'_, AppState>) -> AppResult<Vec<Stri
 
 #[tauri::command]
 pub fn rebuild_index(state: State<'_, AppState>) -> AppResult<usize> {
+    // ponytail: holds the DB mutex for the entire disk walk + per-file upsert. With <1k notes
+    // the lock is held for ~10-100ms; UI stays responsive enough for MVP. When Phase 5 sync
+    // pushes corpus sizes into the thousands, move this to a background task and release the
+    // mutex between upserts (or use a separate index-rebuild connection).
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
     let n = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
     let _ = crate::db::write_meta(

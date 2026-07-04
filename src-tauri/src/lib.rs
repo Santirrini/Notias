@@ -2,9 +2,9 @@ pub mod ai;
 pub mod commands;
 pub mod db;
 pub mod error;
+pub mod notes;
 pub mod scheduler;
 pub mod secrets;
-// `pub mod notes;` is added in Chunk 2 Task 20 when src-tauri/src/notes/mod.rs exists.
 
 use db::AppPaths;
 use std::sync::Mutex;

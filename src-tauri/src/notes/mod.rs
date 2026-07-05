@@ -43,7 +43,7 @@ pub fn create_note(title: String, state: State<'_, AppState>) -> AppResult<Note>
 }
 
 #[tauri::command]
-pub fn update_note(id: String, title: Option<String>, body: Option<String>, state: State<'_, AppState>) -> AppResult<Note> {
+pub fn update_note(id: String, title: Option<String>, body: Option<String>, app: tauri::AppHandle, state: State<'_, AppState>) -> AppResult<Note> {
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
     let path: String = conn.query_row("SELECT path FROM notes WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
         .map_err(|_| AppError::NotFound(id.clone()))?;
@@ -57,6 +57,22 @@ pub fn update_note(id: String, title: Option<String>, body: Option<String>, stat
     store::write(&note)?;
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
     index::upsert(&conn, &note)?;
+    drop(conn);
+
+    let app2 = app.clone();
+    let note_id = note.id.clone();
+    {
+        let mut jobs = state.embed_jobs.lock().map_err(|_| AppError::Config("jobs lock".into()))?;
+        if let Some(prev) = jobs.remove(&note_id) { prev.abort(); }
+        let handle = tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            if let Err(e) = crate::ai::embed::run(note_id.clone(), app2.clone()).await {
+                tracing::warn!("embed worker failed for {note_id}: {e}");
+            }
+        });
+        jobs.insert(note_id, handle);
+    }
+
     Ok(note)
 }
 

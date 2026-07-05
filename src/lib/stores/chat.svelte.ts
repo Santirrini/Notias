@@ -8,18 +8,52 @@ export interface Message {
   citations?: { note_id: string; title: string }[];
 }
 
+// ponytail: ChatStore subscribes to `provider://stream/*` ONCE at construction so events
+// emitted between `aiChat(req)` returning and `listen(...)` resolving are not dropped.
+// The store filters by the active stream_id.
+
 export class ChatStore {
   messages = $state<Message[]>([]);
   streaming = $state(false);
   error = $state<string | null>(null);
+  private activeStreamId: string | null = null;
   private unlisten: UnlistenFn | null = null;
-  private currentId = 0;
+  private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    listen<StreamEvent>('provider://stream/*', (e) => {
+      const m = e.event.match(/^provider:\/\/stream\/(.+)$/);
+      if (!m) return;
+      const sid = m[1];
+      if (sid !== this.activeStreamId) return;
+      const evt = e.payload;
+      this.clearTimeout();
+      if (evt.kind === 'chunk') {
+        this.appendLast(evt.text);
+      } else if (evt.kind === 'done') {
+        this.streaming = false;
+        this.activeStreamId = null;
+      } else if (evt.kind === 'error') {
+        this.error = evt.message;
+        this.streaming = false;
+        this.activeStreamId = null;
+      }
+    }).then((ul) => { this.unlisten = ul; });
+  }
+
+  private clearTimeout() {
+    if (this.timeoutHandle) { clearTimeout(this.timeoutHandle); this.timeoutHandle = null; }
+  }
+
+  private appendLast(text: string) {
+    this.messages = this.messages.map((m, i) =>
+      i === this.messages.length - 1 && m.role === 'assistant'
+        ? { ...m, content: m.content + text }
+        : m
+    );
+  }
 
   async send(text: string) {
-    this.unlisten?.();
-    this.currentId += 1;
-    const myId = this.currentId;
-
     this.messages = [...this.messages, { role: 'user', content: text }];
     this.streaming = true;
     this.error = null;
@@ -45,26 +79,16 @@ export class ChatStore {
 
     try {
       const { stream_id } = await aiChat(req);
-      const channel = `provider://stream/${stream_id}`;
-      let assistant = '';
+      this.activeStreamId = stream_id;
       this.messages = [...this.messages, { role: 'assistant', content: '', citations }];
-
-      const ul = await listen<StreamEvent>(channel, (e) => {
-        if (myId !== this.currentId) return;
-        const evt = e.payload;
-        if (evt.kind === 'chunk') {
-          assistant += evt.text;
-          this.messages = this.messages.map((m, i) =>
-            i === this.messages.length - 1 ? { ...m, content: assistant } : m
-          );
-        } else if (evt.kind === 'done') {
+      // ponytail: 60s timeout in case provider emits chunks but never finishes.
+      this.timeoutHandle = setTimeout(() => {
+        if (this.streaming) {
+          this.error = 'stream timeout';
           this.streaming = false;
-        } else if (evt.kind === 'error') {
-          this.error = evt.message;
-          this.streaming = false;
+          this.activeStreamId = null;
         }
-      });
-      this.unlisten = ul;
+      }, 60_000);
     } catch (e) {
       this.error = (e as Error).message;
       this.streaming = false;
@@ -72,6 +96,7 @@ export class ChatStore {
   }
 
   destroy() {
+    this.clearTimeout();
     this.unlisten?.();
   }
 }

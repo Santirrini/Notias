@@ -88,12 +88,13 @@ pub async fn ai_chat(
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
         let channel = format!("provider://stream/{id}");
+        let channel_for_done = channel.clone();
         let cb = Box::new(move |chunk: ChatChunk| {
             let _ = app2.emit(&channel, serde_json::json!({"kind":"chunk","text":chunk.text}));
         });
         match provider.chat_stream(req, cb).await {
-            Ok(_) => { let _ = app.emit(&channel, serde_json::json!({"kind":"done"})); }
-            Err(e) => { let _ = app.emit(&channel, serde_json::json!({"kind":"error","message":e.to_string()})); }
+            Ok(_) => { let _ = app.emit(&channel_for_done, serde_json::json!({"kind":"done"})); }
+            Err(e) => { let _ = app.emit(&channel_for_done, serde_json::json!({"kind":"error","message":e.to_string()})); }
         }
     });
     Ok(StreamHandle { stream_id })

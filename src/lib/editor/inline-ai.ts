@@ -15,7 +15,7 @@ export class InlineAi {
 
   constructor(
     private readonly getText: () => string,
-    private readonly onSuggest: (s: InlineSuggestion) => void,
+    private readonly onSuggest: (s: InlineSuggestion | null) => void,
   ) {}
 
   trigger() {
@@ -28,10 +28,11 @@ export class InlineAi {
         const completion = await aiComplete(text + '\n');
         const cont = strip_continuation(completion);
         if (cont) {
+          const self = this;
           this.current = {
             text: cont,
-            onAccept: () => { this.current = null; },
-            onDismiss: () => { this.current = null; },
+            onAccept: () => { self.current = null; self.onSuggest(null); },
+            onDismiss: () => { self.current = null; self.onSuggest(null); },
           };
           this.onSuggest(this.current);
         }
@@ -44,7 +45,10 @@ export class InlineAi {
   cancel() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    this.current = null;
+    if (this.current) {
+      this.current = null;
+      this.onSuggest(null);
+    }
   }
 }
 

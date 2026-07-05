@@ -7,12 +7,15 @@ pub mod scheduler;
 pub mod secrets;
 
 use db::AppPaths;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub struct AppState {
     pub paths: AppPaths,
     pub db: Mutex<rusqlite::Connection>,
     pub recovery_required: bool,
+    pub http: reqwest::Client,
+    pub router: Arc<crate::ai::Router>,
+    pub embed_jobs: Mutex<std::collections::HashMap<String, tauri::async_runtime::JoinHandle<()>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,7 +37,31 @@ pub fn run() {
         tracing::error!("db integrity mismatch; recovery screen will offer rebuild");
     }
 
-    let state = AppState { paths, db: Mutex::new(conn), recovery_required };
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .expect("http client");
+
+    let ollama_provider: Option<Arc<crate::ai::ollama::OllamaProvider>> = {
+        let rows = db::get_provider_settings(&conn).expect("provider settings");
+        rows.into_iter()
+            .find(|(n, _, _)| n == "ollama")
+            .and_then(|(_, enabled, cfg)| if enabled {
+                serde_json::from_str::<serde_json::Value>(&cfg).ok()
+                    .and_then(|v| v.get("base_url").and_then(|u| u.as_str()).map(|s| s.to_string()))
+                    .map(|url| Arc::new(crate::ai::ollama::OllamaProvider::new(url, http.clone())))
+            } else { None })
+    };
+    let router = Arc::new(crate::ai::Router::new(ollama_provider));
+
+    let state = AppState {
+        paths,
+        db: Mutex::new(conn),
+        recovery_required,
+        http,
+        router,
+        embed_jobs: Mutex::new(std::collections::HashMap::new()),
+    };
     tracing::info!("notias starting; data_dir={:?}", state.paths.data_dir);
 
     tauri::Builder::default()
@@ -49,6 +76,13 @@ pub fn run() {
             notes::delete_note,
             notes::search_notes,
             notes::rebuild_index,
+            ai::list_providers,
+            ai::enable_provider,
+            ai::test_provider,
+            ai::ai_chat,
+            ai::ai_complete,
+            ai::ai_summarize,
+            ai::rag_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

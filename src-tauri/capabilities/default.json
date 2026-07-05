@@ -5,6 +5,13 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "ai:allow-list-providers",
+    "ai:allow-enable-provider",
+    "ai:allow-test-provider",
+    "ai:allow-ai-chat",
+    "ai:allow-ai-complete",
+    "ai:allow-ai-summarize",
+    "ai:allow-rag-search"
   ]
 }

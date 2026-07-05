@@ -4,6 +4,7 @@
   import { commonmark } from "@milkdown/preset-commonmark";
   import { nord } from "@milkdown/theme-nord";
   import "@milkdown/theme-nord/style.css";
+  import { InlineAi, type InlineSuggestion } from "$lib/editor/inline-ai";
 
   let { initial = "", onChange } = $props<{ initial?: string; onChange?: (v: string) => void }>();
   let host: HTMLDivElement;
@@ -11,6 +12,7 @@
   // svelte-ignore state_referenced_locally
   let lastEmitted = initial;
   let poll: ReturnType<typeof setInterval> | null = null;
+  let suggestion = $state<InlineSuggestion | null>(null);
 
   onMount(async () => {
     editor = await Editor.make()
@@ -39,14 +41,51 @@
     }, 700);
   });
 
+  const ai = new InlineAi(
+    () => editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const serializer = ctx.get(serializerCtx);
+      return serializer(view.state.doc);
+    }) ?? "",
+    (s) => { suggestion = s; },
+  );
+
+  function onSuggestClick() { ai.trigger(); }
+
   onDestroy(async () => {
+    ai.cancel();
     if (poll) clearInterval(poll);
     await editor?.destroy();
   });
 </script>
 
+<div class="toolbar">
+  <button onclick={onSuggestClick}>✨ Suggest</button>
+</div>
+
 <div bind:this={host} class="editor"></div>
+
+{#if suggestion}
+  <div class="suggestion-popover">
+    <p>{suggestion.text}</p>
+    <button onclick={suggestion.onAccept}>Accept (Tab)</button>
+    <button onclick={suggestion.onDismiss}>Dismiss (Esc)</button>
+  </div>
+{/if}
+
+<svelte:window onkeydown={(e) => {
+  if (!suggestion) return;
+  if (e.key === 'Tab') { e.preventDefault(); suggestion.onAccept(); }
+  else if (e.key === 'Escape') { e.preventDefault(); suggestion.onDismiss(); }
+}} />
 
 <style>
   .editor { min-height: 60vh; }
+  .toolbar { margin-bottom: 0.5rem; }
+  .suggestion-popover {
+    position: fixed; bottom: 1rem; right: 1rem;
+    padding: 0.75rem; max-width: 30rem;
+    background: var(--bg-elevated, #222); color: var(--fg, #eee);
+    border: 1px solid var(--border, #444); border-radius: 0.5rem;
+  }
 </style>

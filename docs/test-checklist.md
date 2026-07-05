@@ -14,3 +14,13 @@
 - [ ] Add `[[Some Title]]` in a note; save; reopen file on disk shows updated frontmatter `links: ["Some Title"]`
 - [ ] Delete `notias.db`; restart app; banner shown; click rebuild; notes reappear
 - [ ] `pnpm tauri build` produces artifact for current OS
+
+# Phase 2 smoke checklist (IA local)
+
+- [ ] App starts with Ollama running: `/settings` shows Ollama healthy.
+- [ ] `/settings`: toggle Ollama off, "Test connection" reports unhealthy.
+- [ ] Edit a note; wait 6s; sqlite row in `note_vec` + `notes.embedding_status='ready'`.
+- [ ] `/chat` ask a question; tokens stream; citations list appears.
+- [ ] Stop Ollama; `/chat` shows error banner; app does not crash.
+- [ ] Editor: ✨ Suggest button shows popover; Tab accepts, Esc dismisses.
+- [ ] OLLAMA_TEST_URL=http://127.0.0.1:11434 cargo run --example selfcheck → healthy=true.

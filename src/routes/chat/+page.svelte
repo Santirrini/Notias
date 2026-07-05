@@ -1,1 +1,6 @@
-<h1>Chat</h1><p>Coming in Phase 2.</p>
+<script lang="ts">
+  import ChatPanel from '$lib/components/ChatPanel.svelte';
+</script>
+
+<h1>Chat</h1>
+<ChatPanel />

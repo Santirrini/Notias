@@ -1,5 +1,6 @@
 pub mod ai;
 pub mod commands;
+pub mod commands_secrets;
 pub mod db;
 pub mod error;
 pub mod notes;
@@ -83,6 +84,10 @@ pub fn run() {
             ai::ai_complete,
             ai::ai_summarize,
             ai::rag_search,
+            commands_secrets::set_provider_key,
+            commands_secrets::delete_provider_key,
+            commands_secrets::has_provider_key,
+            commands_secrets::provider_key_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

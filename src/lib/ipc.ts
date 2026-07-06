@@ -32,7 +32,7 @@ export const enableProvider = (name: string, enabled: boolean, configJson?: stri
   invoke<void>("enable_provider", { name, enabled, configJson });
 export const testProvider = (name: string) =>
   invoke<ProviderStatus>("test_provider", { name });
-export const aiChat = (req: { messages: ChatMessage[]; model: string }) =>
+export const aiChat = (req: { messages: ChatMessage[]; model: string; provider?: string }) =>
   invoke<StreamHandle>("ai_chat", { req });
 export const aiComplete = (prompt: string, model?: string) =>
   invoke<string>("ai_complete", { prompt, model });
@@ -40,3 +40,14 @@ export const aiSummarize = (text: string, style: string) =>
   invoke<string>("ai_summarize", { text, style });
 export const ragSearch = (query: string) =>
   invoke<RagHit[]>("rag_search", { query });
+export const aiTranscribe = (audioPath: string) =>
+  invoke<string>("ai_transcribe", { audioPath });
+
+export const setProviderKey = (name: string, key: string) =>
+  invoke<void>("set_provider_key", { name, key });
+export const deleteProviderKey = (name: string) =>
+  invoke<void>("delete_provider_key", { name });
+export const hasProviderKey = (name: string) =>
+  invoke<boolean>("has_provider_key", { name });
+export const providerKeyStatus = () =>
+  invoke<{ name: string; has_key: boolean }[]>("provider_key_status");

@@ -97,6 +97,11 @@ pub fn run() {
             tasks::create_task,
             tasks::update_task,
             tasks::delete_task,
+            srs::generate_cards,
+            srs::save_cards,
+            srs::queue,
+            srs::review,
+            srs::suspend,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

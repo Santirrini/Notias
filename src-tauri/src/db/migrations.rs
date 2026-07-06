@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 // ponytail: compile-time enumeration so production bundles (no migrations/ on disk) still apply.
 // When adding a new migration: append its number here, add an `include_str!` arm in `run()`,
 // and add the SQL file under migrations/.
-const LATEST_VERSION: i64 = 3;
+const LATEST_VERSION: i64 = 4;
 
 pub fn run(conn: &Connection) -> AppResult<()> {
     conn.execute_batch(
@@ -22,6 +22,7 @@ pub fn run(conn: &Connection) -> AppResult<()> {
             1 => include_str!("../../migrations/0001_initial.sql"),
             2 => include_str!("../../migrations/0002_notes_initial.sql"),
             3 => include_str!("../../migrations/0003_ai_provider_settings.sql"),
+            4 => include_str!("../../migrations/0004_provider_priority.sql"),
             _ => return Err(AppError::Config(format!("unknown migration {version}"))),
         };
         let tx = conn.unchecked_transaction()?;
@@ -67,12 +68,26 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run(&conn).unwrap();
         let v: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(v, 3);
+        assert_eq!(v, 4);
 
         // Re-running is a no-op.
         run(&conn).unwrap();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0)).unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn migration_0004_seed_rows() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        let mut stmt = conn.prepare("SELECT name, chat_priority, transcribe_provider FROM provider_settings ORDER BY name").unwrap();
+        let rows: Vec<(String, i64, String)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap()
+            .filter_map(Result::ok).collect();
+        assert!(rows.iter().any(|(n, _, _)| n == "ollama"));
+        assert!(rows.iter().any(|(n, _, _)| n == "openai"));
+        assert!(rows.iter().any(|(n, _, _)| n == "groq"));
+        let ollama = rows.iter().find(|(n, _, _)| n == "ollama").unwrap();
+        assert_eq!(ollama.1, 0, "ollama priority must be 0");
     }
 
     #[test]

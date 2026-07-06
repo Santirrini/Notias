@@ -41,3 +41,5 @@ Notias uses OAuth 2.0 PKCE so no client secret ships in the binary. To enable:
 
 `pnpm tauri dev` smoke not yet witnessed on this host — Windows SDK install
 needed for full webview launch. `cargo check` and `pnpm build` succeed.
+
+See `docs/PROJECT_STATUS.md` for the full phase roll-up + verification matrix.

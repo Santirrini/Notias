@@ -30,7 +30,11 @@ pub struct ChatMessage {
 pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
     pub model: String,
+    #[serde(default = "default_provider")]
+    pub provider: String,
 }
+
+fn default_provider() -> String { "auto".into() }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ChatChunk {

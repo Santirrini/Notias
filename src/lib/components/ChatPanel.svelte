@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { ChatStore } from '$lib/stores/chat.svelte';
+  import type { ChatProviderKind } from '$lib/types/ai';
+
   const store = new ChatStore();
   let input = $state('');
 
@@ -30,6 +32,12 @@
     {#if store.error}<p class="error">{store.error}</p>{/if}
   </div>
   <form onsubmit={(e) => { e.preventDefault(); send(); }}>
+    <select bind:value={store.preferredProvider} aria-label="Provider">
+      <option value="auto">Auto</option>
+      <option value="ollama">Ollama</option>
+      <option value="openai">OpenAI</option>
+      <option value="groq">Groq</option>
+    </select>
     <input bind:value={input} placeholder="Ask anything…" />
     <button type="submit">Send</button>
   </form>

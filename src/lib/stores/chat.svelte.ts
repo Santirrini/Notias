@@ -1,12 +1,19 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { ragSearch, aiChat } from '$lib/ipc';
-import type { StreamEvent } from '$lib/types/ai';
+import type { StreamEvent, ChatProviderKind } from '$lib/types/ai';
 
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: { note_id: string; title: string }[];
 }
+
+const MODEL_BY_PROVIDER: Record<ChatProviderKind | 'auto', string> = {
+  auto: 'llama3.2',
+  ollama: 'llama3.2',
+  openai: 'gpt-4o-mini',
+  groq: 'llama-3.1-70b-versatile',
+};
 
 // ponytail: ChatStore subscribes to `provider://stream/*` ONCE at construction so events
 // emitted between `aiChat(req)` returning and `listen(...)` resolving are not dropped.
@@ -16,6 +23,7 @@ export class ChatStore {
   messages = $state<Message[]>([]);
   streaming = $state(false);
   error = $state<string | null>(null);
+  preferredProvider: ChatProviderKind | 'auto' = $state('auto');
   private activeStreamId: string | null = null;
   private unlisten: UnlistenFn | null = null;
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
@@ -70,7 +78,8 @@ export class ChatStore {
 
     const systemPrompt = `You answer using the provided note context. Cite note titles in [brackets]. Context:\n${context || '(no context)'}`;
     const req = {
-      model: 'llama3.2',
+      provider: this.preferredProvider,
+      model: MODEL_BY_PROVIDER[this.preferredProvider],
       messages: [
         { role: 'system' as const, content: systemPrompt },
         { role: 'user' as const, content: text },

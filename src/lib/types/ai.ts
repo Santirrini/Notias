@@ -1,3 +1,5 @@
+export type ChatProviderKind = 'ollama' | 'openai' | 'groq';
+
 export interface ProviderInfo {
   name: string;
   enabled: boolean;

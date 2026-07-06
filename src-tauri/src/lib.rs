@@ -53,7 +53,8 @@ pub fn run() {
                     .map(|url| Arc::new(crate::ai::ollama::OllamaProvider::new(url, http.clone())))
             } else { None })
     };
-    let router = Arc::new(crate::ai::Router::new(ollama_provider));
+    let router = crate::ai::Router::new(ollama_provider);
+    let _ = tauri::async_runtime::block_on(router.reload(&conn));
 
     let state = AppState {
         paths,
@@ -84,6 +85,7 @@ pub fn run() {
             ai::ai_complete,
             ai::ai_summarize,
             ai::rag_search,
+            ai::ai_transcribe,
             commands_secrets::set_provider_key,
             commands_secrets::delete_provider_key,
             commands_secrets::has_provider_key,

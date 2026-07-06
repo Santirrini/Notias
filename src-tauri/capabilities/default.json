@@ -22,6 +22,7 @@
     "ai:allow-ai-complete",
     "ai:allow-ai-summarize",
     "ai:allow-rag-search",
+    "ai:allow-ai-transcribe",
     "commands_secrets:allow-set-provider-key",
     "commands_secrets:allow-delete-provider-key",
     "commands_secrets:allow-has-provider-key",

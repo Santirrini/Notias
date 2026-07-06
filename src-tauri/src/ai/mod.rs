@@ -11,6 +11,8 @@ pub use openai::OpenAiProvider;
 pub use groq::GroqProvider;
 pub use router::Router;
 
+use std::sync::Arc;
+
 use crate::error::{AppError, AppResult};
 use crate::AppState;
 use serde::Serialize;
@@ -35,16 +37,21 @@ pub fn list_providers(state: State<'_, AppState>) -> AppResult<Vec<ProviderInfo>
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
     let rows = crate::db::get_provider_settings(&conn)?;
     drop(conn);
+    let router = state.router.clone();
+    let snap = tauri::async_runtime::block_on(router.snapshot());
     let mut out = vec![];
     for (name, enabled, _cfg) in rows {
-        let (healthy, detail) = match name.as_str() {
-            "ollama" if state.router.ollama.is_some() => {
-                let p = state.router.ollama.clone().unwrap();
+        let (healthy, detail) = match snap.get(&name) {
+            Some(p) => {
                 let s = tauri::async_runtime::block_on(p.health())
-                    .unwrap_or(ProviderStatus { healthy: false, detail: Some("unreachable".into()) });
+                    .unwrap_or(ProviderStatus { healthy: false, detail: Some("health check failed".into()) });
                 (s.healthy, s.detail)
             }
-            _ => (false, Some("not configured".into())),
+            None => match name.as_str() {
+                "ollama" => (false, Some("disabled or unreachable".into())),
+                "openai" | "groq" => (false, Some("no api key set".into())),
+                _ => (false, Some("not configured".into())),
+            },
         };
         out.push(ProviderInfo { name, enabled, healthy, detail });
     }
@@ -61,6 +68,9 @@ pub fn enable_provider(
     let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
     let cfg = config_json.unwrap_or_else(|| "{}".into());
     crate::db::set_provider_setting(&conn, &name, enabled, &cfg)?;
+    drop(conn);
+    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let _ = tauri::async_runtime::block_on(state.router.try_reload(&conn));
     Ok(())
 }
 
@@ -69,14 +79,10 @@ pub fn test_provider(
     name: String,
     state: State<'_, AppState>,
 ) -> AppResult<ProviderStatus> {
-    match name.as_str() {
-        "ollama" => {
-            let p = state.router.ollama.clone()
-                .ok_or_else(|| AppError::Config("ollama not configured".into()))?;
-            tauri::async_runtime::block_on(p.health())
-        }
-        _ => Err(AppError::Config(format!("unknown provider: {name}"))),
-    }
+    let router = state.router.clone();
+    let snap = tauri::async_runtime::block_on(router.snapshot());
+    let p = snap.get(&name).ok_or_else(|| AppError::Config(format!("unknown provider: {name}")))?;
+    tauri::async_runtime::block_on(p.health())
 }
 
 #[tauri::command]
@@ -86,8 +92,7 @@ pub async fn ai_chat(
     state: State<'_, AppState>,
 ) -> AppResult<StreamHandle> {
     let stream_id = Ulid::new().to_string();
-    let provider = state.router.local_chat()
-        .ok_or_else(|| AppError::Config("no local AI provider available".into()))?;
+    let provider: Arc<dyn Provider> = state.router.pick_chat().await?;
     let id = stream_id.clone();
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -110,8 +115,7 @@ pub async fn ai_complete(
     model: Option<String>,
     state: State<'_, AppState>,
 ) -> AppResult<String> {
-    let provider = state.router.local_chat()
-        .ok_or_else(|| AppError::Config("no local AI provider available".into()))?;
+    let provider = state.router.pick_chat().await?;
     let model = model.unwrap_or_else(|| "llama3.2".into());
     Ok(provider.complete(CompleteRequest { prompt, model, max_tokens: None }).await?.text)
 }
@@ -122,9 +126,17 @@ pub async fn ai_summarize(
     style: String,
     state: State<'_, AppState>,
 ) -> AppResult<String> {
-    let provider = state.router.local_chat()
-        .ok_or_else(|| AppError::Config("no local AI provider available".into()))?;
+    let provider = state.router.pick_chat().await?;
     provider.summarize(&text, &style).await
+}
+
+#[tauri::command]
+pub async fn ai_transcribe(
+    audio_path: String,
+    state: State<'_, AppState>,
+) -> AppResult<String> {
+    let provider = state.router.pick_transcribe().await?;
+    provider.transcribe(std::path::Path::new(&audio_path)).await
 }
 
 #[derive(Serialize)]
@@ -136,8 +148,10 @@ pub struct RagHit {
 
 #[tauri::command]
 pub fn rag_search(query: String, state: State<'_, AppState>) -> AppResult<Vec<RagHit>> {
-    let provider = state.router.ollama.clone()
-        .ok_or_else(|| AppError::Config("ollama not configured".into()))?;
+    let router = state.router.clone();
+    let provider = tauri::async_runtime::block_on(async {
+        router.local_only().await
+    }).ok_or_else(|| AppError::Config("ollama not configured (embeddings require ollama)".into()))?;
 
     let q_vec = tauri::async_runtime::block_on(async {
         provider.embed(&[query.clone()], "nomic-embed-text").await

@@ -4,7 +4,7 @@ pub mod commands_secrets;
 pub mod db;
 pub mod error;
 pub mod notes;
-pub mod scheduler;
+pub mod srs;
 pub mod secrets;
 
 use db::AppPaths;

@@ -1,10 +1,12 @@
 pub mod provider;
 pub mod ollama;
+pub mod openai;
 pub mod router;
 pub mod embed;
 pub mod prompts;
 
 pub use provider::{Provider, ProviderStatus, CompleteRequest, Completion, ChatMessage, ChatRequest, ChatChunk};
+pub use openai::OpenAiProvider;
 pub use router::Router;
 
 use crate::error::{AppError, AppResult};

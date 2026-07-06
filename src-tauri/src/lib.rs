@@ -6,6 +6,7 @@ pub mod error;
 pub mod notes;
 pub mod srs;
 pub mod secrets;
+pub mod study;
 pub mod tasks;
 pub mod time_util;
 
@@ -102,6 +103,11 @@ pub fn run() {
             srs::queue,
             srs::review,
             srs::suspend,
+            study::generate_quiz,
+            study::grade_quiz,
+            study::generate_plan,
+            study::save_plan,
+            study::get_plan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,6 +5,7 @@
   import { nord } from "@milkdown/theme-nord";
   import "@milkdown/theme-nord/style.css";
   import { InlineAi, type InlineSuggestion } from "$lib/editor/inline-ai";
+  import AudioRecorder from "$lib/components/AudioRecorder.svelte";
 
   let { initial = "", onChange } = $props<{ initial?: string; onChange?: (v: string) => void }>();
   let host: HTMLDivElement;
@@ -52,6 +53,19 @@
 
   function onSuggestClick() { ai.trigger(); }
 
+  // ponytail: insertAtEnd appends transcript at end-of-doc via a manual DOM edit. Milkdown 7
+  // has no stable public insertText action yet; Phase 3 ships the simplest working version.
+  function insertAtEnd(text: string) {
+    if (!editor) return;
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const end = state.doc.content.size;
+      const tr = state.tr.insertText("\n\n" + text + "\n", end);
+      view.dispatch(tr);
+    });
+  }
+
   onDestroy(async () => {
     ai.cancel();
     if (poll) clearInterval(poll);
@@ -61,6 +75,7 @@
 
 <div class="toolbar">
   <button onclick={onSuggestClick}>✨ Suggest</button>
+  <AudioRecorder onInsert={insertAtEnd} />
 </div>
 
 <div bind:this={host} class="editor"></div>
@@ -81,7 +96,8 @@
 
 <style>
   .editor { min-height: 60vh; }
-  .toolbar { margin-bottom: 0.5rem; }
+  .toolbar { margin-bottom: 0.5rem; display: flex; gap: 0.75rem; align-items: flex-start; }
+  .toolbar :global(.rec) { flex: 1; }
   .suggestion-popover {
     position: fixed; bottom: 1rem; right: 1rem;
     padding: 0.75rem; max-width: 30rem;

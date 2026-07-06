@@ -93,3 +93,8 @@ export const generatePlan = (weekStart: string, dailyHoursCap: number) =>
   invoke<Plan>("generate_plan", { weekStart, dailyHoursCap });
 export const savePlan = (plan: Plan) => invoke<string>("save_plan", { plan });
 export const getPlan = (weekStart: string) => invoke<Plan | null>("get_plan", { weekStart });
+
+// Phase 5 — sync
+export const syncExportZip = () => invoke<number[]>("sync_export_zip");
+export const syncImportZip = (bytes: number[]) => invoke<number>("sync_import_zip", { bytes });
+export const syncRebuildNow = () => invoke<number>("sync_rebuild_now");

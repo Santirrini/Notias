@@ -112,4 +112,22 @@ async fn main() {
     assert!(prompts::cards_generate("body", 5).contains("5"));
     assert!(prompts::quiz_generate("body", 3).contains("JSON"));
     assert!(prompts::plan_generate("ctx", "2026-07-06", 4).contains("2026-07-06"));
+
+    // Phase 5 — sync invariants. No network, no main thread.
+    use notias_lib::notes::sync;
+
+    // 1. export_zip + import_zip roundtrip on a fresh dir.
+    let sync_src = tempfile::tempdir().expect("sync src dir");
+    std::fs::create_dir_all(sync_src.path().join("notes")).unwrap();
+    let z = sync::export_zip(&sync_src.path().join("notes")).unwrap();
+    assert!(!z.is_empty(), "export_zip of empty dir must still produce a zip");
+    let import_dst = tempfile::tempdir().expect("sync dst dir");
+    let n = sync::import_zip(&import_dst.path().join("notes"), &z).unwrap();
+    assert_eq!(n, 0, "empty source → zero imports");
+
+    // 2. rebuild_if_stale: false on a fresh install (no db file).
+    let stale = sync::rebuild_if_stale(&sync_src.path().join("notes"), &sync_src.path().join("missing.db"));
+    assert!(!stale, "no db file → not stale");
+
+    println!("phase-5 selfcheck OK: zip roundtrip + stale detection wired");
 }

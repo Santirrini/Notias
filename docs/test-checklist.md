@@ -48,3 +48,16 @@
 - [ ] `cd src-tauri && cargo run --example selfcheck` prints `phase-4 selfcheck OK: tasks=1 srs_due>=3 plan_persisted=true` (tasks seeded by selfcheck; 3 SRS cards seeded).
 - [ ] `pnpm tauri dev` opens window; sidebar nav shows Tasks + Study links.
 - [ ] `cargo test --lib` passes including all 7 SM-2 tests + 4 quiz grading tests + 4 plan validation tests.
+
+## Phase 5 — Sync opcional
+
+- [ ] `/settings` Sync section: "Export notes.zip" downloads a zip containing every `.md` from the data dir.
+- [ ] Extract that zip manually and confirm it contains only `.md` files (no `.db`, no `.meta`).
+- [ ] Delete two notes from disk; restart app; "Rebuild index" repopulates the list (or the startup hook rebuilds automatically when their mtime > db mtime).
+- [ ] On machine B, replace `notes/` with the unzipped folder; restart; all notes appear in the tree.
+- [ ] With the app running, edit a `.md` in another process (text editor) — within ~1s the change is reflected in the UI list/search.
+- [ ] `/settings` Import zip: pick the exported zip; status reports "Imported N files + rebuilt index".
+- [ ] `/settings` Import zip: feed a malicious zip with `../escape.md` — UI shows an error, no file escapes the `notes/` folder.
+- [ ] `cargo run --example selfcheck` prints `phase-5 selfcheck OK: zip roundtrip + stale detection wired`.
+- [ ] `cargo test --lib notes::sync` passes all 4 tests.
+- [ ] `pnpm tauri build` still produces an artifact (no new Tauri permissions needed for sync — IPC reads/writes the notes dir via Rust, not the frontend).

@@ -1,5 +1,9 @@
 export type WireError = { code: string; message: string };
 
+export type SyncStatus = { kind: 'exported'; bytes: number }
+  | { kind: 'imported'; count: number }
+  | { kind: 'rebuilt'; count: number };
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: WireError };
 
 export type NoteSummary = { id: string; title: string; updated: string; tags: string[] };

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { listProviders, enableProvider, testProvider } from '$lib/ipc';
   import ProviderCard from '$lib/components/ProviderCard.svelte';
+  import SyncSettings from '$lib/components/SyncSettings.svelte';
   import type { ProviderInfo } from '$lib/types/ai';
 
   let providers = $state<ProviderInfo[]>([]);
@@ -87,6 +88,8 @@
   <h2>Transcription</h2>
   <p class="muted">Whisper runs via Groq by default. Set a Groq API key above to enable.</p>
 </section>
+
+<SyncSettings />
 
 <style>
   h1 { margin-top: 1rem; }

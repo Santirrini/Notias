@@ -69,6 +69,32 @@ pub fn run() {
     };
     tracing::info!("notias starting; data_dir={:?}", state.paths.data_dir);
 
+    // Phase 5 — sync: rebuild if external app touched notes/ between runs.
+    // ponytail: holds the db mutex for the rebuild window; fine on small corpora.
+    if notes::sync::rebuild_if_stale(&state.paths.notes_dir, &state.paths.db_file) {
+        tracing::info!("notes/ has changes newer than notias.db; rebuilding at startup");
+        let conn = state.db.lock().expect("db lock");
+        let _ = notes::index::rebuild_from_disk(&conn, &state.paths.notes_dir);
+        let _ = db::write_meta(
+            &state.paths.meta_file,
+            &db::migrations::db_hash(&conn).unwrap_or_default(),
+            db::migrations::read_schema_version(&conn).unwrap_or(0),
+        );
+    }
+
+    // Phase 5 — sync: background folder watcher for live external edits.
+    let watch_db = match notes::sync::open_watcher_connection(&state.paths.db_file) {
+        Ok(c) => Some(Arc::new(Mutex::new(c))),
+        Err(e) => { tracing::warn!("watcher: open failed: {e}"); None }
+    };
+    if let Some(db) = watch_db {
+        let _watcher = notes::sync::spawn_watcher(
+            state.paths.notes_dir.clone(),
+            db,
+            std::time::Duration::from_millis(500),
+        );
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .manage(state)
@@ -82,6 +108,9 @@ pub fn run() {
             notes::delete_note,
             notes::search_notes,
             notes::rebuild_index,
+            notes::sync_export_zip,
+            notes::sync_import_zip,
+            notes::sync_rebuild_now,
             ai::list_providers,
             ai::enable_provider,
             ai::test_provider,

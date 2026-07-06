@@ -34,7 +34,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 keyring = "2"
 time = { version = "0.3", features = ["formatting"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
-sqlite-vec = { version = "0.1", features = ["bundled"] }
+sqlite-vec = "0.1"
+notify = "6"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3"

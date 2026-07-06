@@ -1,13 +1,14 @@
 pub mod index;
 pub mod model;
 pub mod store;
+pub mod sync;
 pub mod wikilinks;
 
 pub use model::{Note, NoteSummary, Frontmatter};
 
 use crate::AppState;
 use crate::error::{AppError, AppResult};
-use crate::notes::{index, model::Note, store, wikilinks};
+use crate::notes::{index, model::Note, store, sync, wikilinks};
 use tauri::State;
 use ulid::Ulid;
 
@@ -134,4 +135,34 @@ fn format_unix_seconds_as_rfc3339(secs: u64) -> String {
 fn model_frontmatter(id: &str, title: &str, now: &str) -> crate::notes::model::Frontmatter {
     use crate::notes::model::Frontmatter;
     Frontmatter { id: id.into(), title: title.into(), tags: vec![], created: now.into(), updated: now.into(), links: vec![], references: vec![] }
+}
+
+#[tauri::command]
+pub fn sync_export_zip(state: State<'_, AppState>) -> AppResult<Vec<u8>> {
+    sync::export_zip(&state.paths.notes_dir)
+}
+
+#[tauri::command]
+pub fn sync_import_zip(bytes: Vec<u8>, state: State<'_, AppState>) -> AppResult<usize> {
+    let n = sync::import_zip(&state.paths.notes_dir, &bytes)?;
+    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let _ = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
+    let _ = crate::db::write_meta(
+        &state.paths.meta_file,
+        &crate::db::migrations::db_hash(&conn)?,
+        crate::db::migrations::read_schema_version(&conn)?,
+    );
+    Ok(n)
+}
+
+#[tauri::command]
+pub fn sync_rebuild_now(state: State<'_, AppState>) -> AppResult<usize> {
+    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let n = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
+    let _ = crate::db::write_meta(
+        &state.paths.meta_file,
+        &crate::db::migrations::db_hash(&conn)?,
+        crate::db::migrations::read_schema_version(&conn)?,
+    );
+    Ok(n)
 }

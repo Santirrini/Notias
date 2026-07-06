@@ -4,6 +4,18 @@ export type SyncStatus = { kind: 'exported'; bytes: number }
   | { kind: 'imported'; count: number }
   | { kind: 'rebuilt'; count: number };
 
+export type CalendarEvent = {
+  gcal_id: string;
+  summary: string;
+  description: string | null;
+  starts_at: string;
+  ends_at: string;
+  updated_at: string;
+  source: string;
+};
+
+export type CalendarAuthStatus = { connected: boolean; expires_at?: number | null };
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: WireError };
 
 export type NoteSummary = { id: string; title: string; updated: string; tags: string[] };

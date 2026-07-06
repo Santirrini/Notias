@@ -3,6 +3,7 @@
   import { listProviders, enableProvider, testProvider } from '$lib/ipc';
   import ProviderCard from '$lib/components/ProviderCard.svelte';
   import SyncSettings from '$lib/components/SyncSettings.svelte';
+  import CalendarSettings from '$lib/components/CalendarSettings.svelte';
   import type { ProviderInfo } from '$lib/types/ai';
 
   let providers = $state<ProviderInfo[]>([]);
@@ -90,6 +91,8 @@
 </section>
 
 <SyncSettings />
+
+<CalendarSettings />
 
 <style>
   h1 { margin-top: 1rem; }

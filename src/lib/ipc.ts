@@ -98,3 +98,14 @@ export const getPlan = (weekStart: string) => invoke<Plan | null>("get_plan", { 
 export const syncExportZip = () => invoke<number[]>("sync_export_zip");
 export const syncImportZip = (bytes: number[]) => invoke<number>("sync_import_zip", { bytes });
 export const syncRebuildNow = () => invoke<number>("sync_rebuild_now");
+
+// Phase 6 — calendar
+import type { CalendarEvent, CalendarAuthStatus } from "./types";
+
+export const calendarAuthStatus = () => invoke<CalendarAuthStatus>("calendar_auth_status");
+export const calendarConnect = () => invoke<void>("calendar_connect");
+export const calendarDisconnect = () => invoke<void>("calendar_disconnect");
+export const calendarPull = (days: number) => invoke<number>("calendar_pull", { days });
+export const calendarCreate = (summary: string, description: string, startIso: string, endIso: string) =>
+  invoke<CalendarEvent>("calendar_create", { summary, description, startIso, endIso });
+export const calendarList = () => invoke<CalendarEvent[]>("calendar_list");

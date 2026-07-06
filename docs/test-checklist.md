@@ -61,3 +61,15 @@
 - [ ] `cargo run --example selfcheck` prints `phase-5 selfcheck OK: zip roundtrip + stale detection wired`.
 - [ ] `cargo test --lib notes::sync` passes all 4 tests.
 - [ ] `pnpm tauri build` still produces an artifact (no new Tauri permissions needed for sync — IPC reads/writes the notes dir via Rust, not the frontend).
+
+## Phase 6 — Google Calendar
+
+- [ ] Register an OAuth client at console.cloud.google.com (type: Web application, redirect URI: `http://127.0.0.1:PORT/callback` with any port).
+- [ ] Edit `src-tauri/src/oauth/google.rs` and set `OAUTH_CLIENT_ID` to your client id; rebuild.
+- [ ] `/settings` → Calendar section: "Connect…" opens browser, prompts Google sign-in, redirects back; status pill flips to "connected".
+- [ ] `/calendar` → "Sync now (next 7 days)" pulls events from your primary Google calendar; list populates within 2s.
+- [ ] `/calendar` → Create event: summary + date + start/end → new event appears in list; verify same event exists in Google Calendar web UI.
+- [ ] Edit an event in Google Calendar web UI → click "Sync now" → local list reflects the change (last-write-wins).
+- [ ] `cargo run --example selfcheck` prints `phase-6 selfcheck OK: pkce + calendar client + mirror schema`.
+- [ ] `cargo test --lib oauth::google calendar::google` passes.
+- [ ] `pnpm tauri build` still produces an artifact.

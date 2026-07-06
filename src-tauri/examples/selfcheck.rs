@@ -130,4 +130,32 @@ async fn main() {
     assert!(!stale, "no db file → not stale");
 
     println!("phase-5 selfcheck OK: zip roundtrip + stale detection wired");
+
+    // Phase 6 — calendar invariants.
+    use notias_lib::oauth::google as oauth;
+    use notias_lib::calendar::google as gcal;
+
+    let (v, c) = oauth::pkce_pair();
+    assert!(v.len() >= 43 && c.len() >= 43);
+    assert!(!v.contains('=') && !c.contains('='), "URL_SAFE_NO_PAD must strip padding");
+
+    let ev = gcal::GEvent {
+        id: "x".into(),
+        summary: Some("Lecture".into()),
+        description: None,
+        start: gcal::GDateTime { date_time: "2026-07-06T09:00:00Z".into(), time_zone: None },
+        end:   gcal::GDateTime { date_time: "2026-07-06T10:00:00Z".into(), time_zone: None },
+        updated: "2026-07-06T08:00:00Z".into(),
+    };
+    let json = serde_json::to_string(&ev).unwrap();
+    let back: gcal::GEvent = serde_json::from_str(&json).unwrap();
+    assert_eq!(back.id, "x");
+
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('calendar_events','calendar_sync_state')",
+        [], |r| r.get(0),
+    ).unwrap();
+    assert_eq!(n, 2, "calendar tables missing");
+
+    println!("phase-6 selfcheck OK: pkce + calendar client + mirror schema");
 }

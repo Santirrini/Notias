@@ -3,6 +3,7 @@
     { href: "/", label: "Today" },
     { href: "/notes", label: "Notes" },
     { href: "/chat", label: "Chat" },
+    { href: "/calendar", label: "Calendar" },
     { href: "/tasks", label: "Tasks" },
     { href: "/study", label: "Study" },
     { href: "/settings", label: "Settings" },

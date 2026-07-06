@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 // ponytail: compile-time enumeration so production bundles (no migrations/ on disk) still apply.
 // When adding a new migration: append its number here, add an `include_str!` arm in `run()`,
 // and add the SQL file under migrations/.
-const LATEST_VERSION: i64 = 5;
+const LATEST_VERSION: i64 = 6;
 
 pub fn run(conn: &Connection) -> AppResult<()> {
     conn.execute_batch(
@@ -24,6 +24,7 @@ pub fn run(conn: &Connection) -> AppResult<()> {
             3 => include_str!("../../migrations/0003_ai_provider_settings.sql"),
             4 => include_str!("../../migrations/0004_provider_priority.sql"),
             5 => include_str!("../../migrations/0005_study.sql"),
+            6 => include_str!("../../migrations/0006_calendar.sql"),
             _ => return Err(AppError::Config(format!("unknown migration {version}"))),
         };
         let tx = conn.unchecked_transaction()?;
@@ -69,7 +70,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run(&conn).unwrap();
         let v: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(v, 5);
+        assert_eq!(v, 6);
 
         // Re-running is a no-op.
         run(&conn).unwrap();

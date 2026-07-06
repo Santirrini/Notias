@@ -1,9 +1,11 @@
 pub mod ai;
+pub mod calendar;
 pub mod commands;
 pub mod commands_secrets;
 pub mod db;
 pub mod error;
 pub mod notes;
+pub mod oauth;
 pub mod srs;
 pub mod secrets;
 pub mod study;
@@ -111,6 +113,12 @@ pub fn run() {
             notes::sync_export_zip,
             notes::sync_import_zip,
             notes::sync_rebuild_now,
+            calendar::calendar_auth_status,
+            calendar::calendar_connect,
+            calendar::calendar_disconnect,
+            calendar::calendar_pull,
+            calendar::calendar_create,
+            calendar::calendar_list,
             ai::list_providers,
             ai::enable_provider,
             ai::test_provider,

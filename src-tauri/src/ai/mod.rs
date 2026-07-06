@@ -5,6 +5,7 @@ pub mod groq;
 pub mod router;
 pub mod embed;
 pub mod prompts;
+pub mod json_helpers;
 
 pub use provider::{Provider, ProviderStatus, CompleteRequest, Completion, ChatMessage, ChatRequest, ChatChunk};
 pub use openai::OpenAiProvider;

@@ -6,6 +6,8 @@ pub mod error;
 pub mod notes;
 pub mod srs;
 pub mod secrets;
+pub mod tasks;
+pub mod time_util;
 
 use db::AppPaths;
 use std::sync::{Arc, Mutex};
@@ -91,6 +93,10 @@ pub fn run() {
             commands_secrets::delete_provider_key,
             commands_secrets::has_provider_key,
             commands_secrets::provider_key_status,
+            tasks::list_tasks,
+            tasks::create_task,
+            tasks::update_task,
+            tasks::delete_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -24,7 +24,8 @@ Artifacts land in `src-tauri/target/release/bundle/`.
 - Phase 0 (scaffold) complete.
 - Phase 1 (MVP Notas) complete.
 - Phase 2 (IA local) complete — Ollama HTTP + RAG chat + embeddings worker + settings UI shipped.
-- Phase 3 (Cloud IA + STT) complete — OpenAI + Groq providers, keyring-backed API keys, router fallback (local→cloud), Whisper transcription via Groq. Verify with `pnpm tauri dev`, set OpenAI/Groq key in Settings, switch chat provider dropdown.
+- Phase 3 (Cloud IA + STT) complete — OpenAI + Groq providers, keyring-backed API keys, router fallback (local→cloud), Whisper transcription via Groq.
+- Phase 4 (Estudio autónomo) complete — SM-2 SRS with UI grader, quiz generator + runner (mc/short/cloze), weekly plan generator (AI via router fallback), tasks kanban. Verify with `pnpm tauri dev`; `cargo run --example selfcheck` exercises schema v5, SM-2, plan round-trip.
 
 `pnpm tauri dev` smoke not yet witnessed on this host — Windows SDK install
 needed for full webview launch. `cargo check` and `pnpm build` succeed.

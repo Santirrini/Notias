@@ -54,4 +54,62 @@ async fn main() {
     let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap()
         .filter_map(Result::ok).collect();
     for (name, _) in &rows { println!("provider: {} priority", name); }
+
+    // Phase 4 — SRS + quiz + plan invariants. No network calls.
+    use notias_lib::ai::prompts;
+    use notias_lib::srs::sm2::{review, CardState};
+    use notias_lib::study::plan::{self as plan_mod, Plan, PlanBlock};
+
+    // 1. SM-2: simulate Again → Good → Good → Good → Easy sequence.
+    let mut s = CardState { ease: 2.5, interval_days: 0, repetitions: 0, due_at: "2026-07-06T00:00:00Z".into() };
+    let baseline = s.ease;
+    s = review(s, 1, "2026-07-06T00:00:00Z");
+    assert!(s.ease < baseline, "ease should drop on Again");
+    s = review(s, 4, "2026-07-06T00:00:00Z");
+    s = review(s, 4, "2026-07-07T00:00:00Z");
+    s = review(s, 4, "2026-07-13T00:00:00Z");
+    s = review(s, 5, "2026-07-13T00:00:00Z");
+    println!("phase-4 SM-2 final: ease={:.3} reps={} interval={}d", s.ease, s.repetitions, s.interval_days);
+
+    // 2. Tasks: insert row, count >= 1.
+    let now = notias_lib::time_util::time_now();
+    conn.execute(
+        "INSERT INTO tasks (id, title, priority, status, created_at, updated_at) VALUES ('p4t1','Read paper',1,'todo',?1,?1)",
+        [&now],
+    ).unwrap();
+    let n: i64 = conn.query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0)).unwrap();
+    assert!(n >= 1, "task must persist");
+
+    // 3. SRS: insert 3 cards, queue should return ≥3 (all due now).
+    for f in ["Hecke operators", "Schur multipliers", "Borel subgroups"] {
+        let id = ulid::Ulid::new().to_string();
+        conn.execute(
+            "INSERT INTO srs_cards (id, front, back, due_at, created_at) VALUES (?1, ?2, 'answer', '2026-07-06T00:00:00Z', '2026-07-06T00:00:00Z')",
+            rusqlite::params![id, f],
+        ).unwrap();
+    }
+    let q: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM srs_cards WHERE suspended_at IS NULL AND due_at <= ?1",
+        [&now], |r| r.get(0),
+    ).unwrap();
+    assert!(q >= 3, "expected ≥3 due cards, got {q}");
+
+    // 4. Plan: save and read back.
+    let plan = Plan {
+        week_start: "2026-07-06".into(),
+        daily_hours_cap: 4,
+        blocks: vec![PlanBlock {
+            day: "2026-07-06".into(), start: "09:00".into(), minutes: 60,
+            kind: "review".into(), refs: vec![], rationale: "warmup".into(),
+        }],
+    };
+    let _ = plan_mod::save(&conn, &plan).unwrap();
+    let got = plan_mod::get(&conn, "2026-07-06").unwrap();
+    assert!(got.is_some(), "plan must round-trip");
+    println!("phase-4 selfcheck OK: tasks={n} srs_due={q} plan_persisted=true");
+
+    // 5. Prompts contain required content.
+    assert!(prompts::cards_generate("body", 5).contains("5"));
+    assert!(prompts::quiz_generate("body", 3).contains("JSON"));
+    assert!(prompts::plan_generate("ctx", "2026-07-06", 4).contains("2026-07-06"));
 }

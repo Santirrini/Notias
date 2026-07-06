@@ -35,3 +35,16 @@
 - [ ] Open a note → Record in toolbar → record 5–30s → transcript appears + clicking Insert appends to doc.
 - [ ] `pnpm tauri build` still produces an artifact (capability additions for `commands_secrets:*` and `ai:allow-ai-transcribe` don't break the manifest).
 - [ ] `cargo run --example selfcheck` reports schema v4.
+
+## Phase 4 — Estudio autónomo
+
+- [ ] `/tasks`: drag a card across columns → status updates without reload.
+- [ ] `/tasks`: add a new task via input + Enter → row appears in `todo` column.
+- [ ] `/study` Today: queue loads; Reveal → grade (Again/Hard/Good/Easy) advances; SM-2 interval grows on Good.
+- [ ] `/study` Today: pass `?note=<id>` in URL → "Generate 5 cards" button appears + draft cards show.
+- [ ] `/study` Quizzes: paste 2 note IDs + Generate → answer questions + Submit → score + per-question rationale visible.
+- [ ] `/study` Plan: Regenerate writes `study_sessions.plan_json` with `week_start` of current Monday; dropdown moves a block across days.
+- [ ] Disable Ollama, enable Groq or OpenAI: SRS generation, quiz, and plan still work via cloud.
+- [ ] `cd src-tauri && cargo run --example selfcheck` prints `phase-4 selfcheck OK: tasks=1 srs_due>=3 plan_persisted=true` (tasks seeded by selfcheck; 3 SRS cards seeded).
+- [ ] `pnpm tauri dev` opens window; sidebar nav shows Tasks + Study links.
+- [ ] `cargo test --lib` passes including all 7 SM-2 tests + 4 quiz grading tests + 4 plan validation tests.

@@ -35,4 +35,23 @@ async fn main() {
             Err(e) => println!("ollama health error: {e}"),
         }
     }
+
+    // ponytail: cheap structural assertions so CI catches drift. Real network tests
+    // live in the manual smoke checklist — they need user credentials.
+    use notias_lib::ai::{OpenAiProvider, GroqProvider, provider::Provider};
+    let client = reqwest::Client::new();
+    let _openai = OpenAiProvider::new("sk-fake".into(), client.clone());
+    let _groq = GroqProvider::new("gsk-fake".into(), client);
+    println!("phase-3 invariants: OpenAIProvider + GroqProvider construct");
+
+    // Verify migration 0004 set the expected defaults.
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM provider_settings", [], |r| r.get(0))
+        .unwrap();
+    assert!(count >= 3, "expected ollama/openai/groq rows, found {count}");
+
+    let mut stmt = conn.prepare("SELECT name, chat_priority FROM provider_settings ORDER BY name").unwrap();
+    let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap()
+        .filter_map(Result::ok).collect();
+    for (name, _) in &rows { println!("provider: {} priority", name); }
 }

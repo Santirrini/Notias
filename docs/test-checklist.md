@@ -24,3 +24,14 @@
 - [ ] Stop Ollama; `/chat` shows error banner; app does not crash.
 - [ ] Editor: ✨ Suggest button shows popover; Tab accepts, Esc dismisses.
 - [ ] OLLAMA_TEST_URL=http://127.0.0.1:11434 cargo run --example selfcheck → healthy=true.
+
+## Phase 3 — Cloud IA + STT
+
+- [ ] Settings shows three provider cards (Ollama, OpenAI, Groq).
+- [ ] Toggle provider → "enabled" pill flips, app does NOT need restart.
+- [ ] Paste a fake OpenAI key, click Save → "key set" badge appears; key not visible in any log line (check `tracing` output if `RUST_LOG=debug`).
+- [ ] Reload after Save: provider_key_status returns `{has_key: true}`; ai_chat routes through OpenAI when Ollama disabled.
+- [ ] Disable Ollama + enable OpenAI with a real key → chat replies via OpenAI (verify by selecting "OpenAI" in /chat dropdown).
+- [ ] Open a note → Record in toolbar → record 5–30s → transcript appears + clicking Insert appends to doc.
+- [ ] `pnpm tauri build` still produces an artifact (capability additions for `commands_secrets:*` and `ai:allow-ai-transcribe` don't break the manifest).
+- [ ] `cargo run --example selfcheck` reports schema v4.

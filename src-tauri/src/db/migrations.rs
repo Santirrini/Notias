@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 // ponytail: compile-time enumeration so production bundles (no migrations/ on disk) still apply.
 // When adding a new migration: append its number here, add an `include_str!` arm in `run()`,
 // and add the SQL file under migrations/.
-const LATEST_VERSION: i64 = 4;
+const LATEST_VERSION: i64 = 5;
 
 pub fn run(conn: &Connection) -> AppResult<()> {
     conn.execute_batch(
@@ -23,6 +23,7 @@ pub fn run(conn: &Connection) -> AppResult<()> {
             2 => include_str!("../../migrations/0002_notes_initial.sql"),
             3 => include_str!("../../migrations/0003_ai_provider_settings.sql"),
             4 => include_str!("../../migrations/0004_provider_priority.sql"),
+            5 => include_str!("../../migrations/0005_study.sql"),
             _ => return Err(AppError::Config(format!("unknown migration {version}"))),
         };
         let tx = conn.unchecked_transaction()?;
@@ -68,7 +69,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run(&conn).unwrap();
         let v: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(v, 4);
+        assert_eq!(v, 5);
 
         // Re-running is a no-op.
         run(&conn).unwrap();
@@ -88,6 +89,30 @@ mod tests {
         assert!(rows.iter().any(|(n, _, _)| n == "groq"));
         let ollama = rows.iter().find(|(n, _, _)| n == "ollama").unwrap();
         assert_eq!(ollama.1, 0, "ollama priority must be 0");
+    }
+
+    #[test]
+    fn migration_0005_study_tables_present() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        let names: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('tasks','srs_cards','srs_reviews','study_sessions','quiz_attempts') ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        assert_eq!(names, vec!["quiz_attempts", "srs_cards", "srs_reviews", "study_sessions", "tasks"]);
+
+        // srs_cards must have the UNIQUE(note_id, front) constraint for idempotency.
+        let idx: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_srs_nodupe'")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        assert_eq!(idx, vec!["idx_srs_nodupe".to_string()]);
     }
 
     #[test]

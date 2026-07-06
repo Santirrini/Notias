@@ -67,6 +67,7 @@ pub fn run() {
     tracing::info!("notias starting; data_dir={:?}", state.paths.data_dir);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::ping,

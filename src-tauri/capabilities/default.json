@@ -26,6 +26,7 @@
     "commands_secrets:allow-set-provider-key",
     "commands_secrets:allow-delete-provider-key",
     "commands_secrets:allow-has-provider-key",
-    "commands_secrets:allow-provider-key-status"
+    "commands_secrets:allow-provider-key-status",
+    "fs:default"
   ]
 }

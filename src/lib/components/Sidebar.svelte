@@ -1,9 +1,10 @@
 <script lang="ts">
-  // ponytail: routes wired in Phase 1; placeholder items shown only.
   const items = [
     { href: "/", label: "Today" },
     { href: "/notes", label: "Notes" },
     { href: "/chat", label: "Chat" },
+    { href: "/tasks", label: "Tasks" },
+    { href: "/study", label: "Study" },
     { href: "/settings", label: "Settings" },
   ];
 </script>

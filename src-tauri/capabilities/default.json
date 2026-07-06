@@ -27,6 +27,20 @@
     "commands_secrets:allow-delete-provider-key",
     "commands_secrets:allow-has-provider-key",
     "commands_secrets:allow-provider-key-status",
+    "tasks:allow-list-tasks",
+    "tasks:allow-create-task",
+    "tasks:allow-update-task",
+    "tasks:allow-delete-task",
+    "srs:allow-generate-cards",
+    "srs:allow-save-cards",
+    "srs:allow-queue",
+    "srs:allow-review",
+    "srs:allow-suspend",
+    "study:allow-generate-quiz",
+    "study:allow-grade-quiz",
+    "study:allow-generate-plan",
+    "study:allow-save-plan",
+    "study:allow-get-plan",
     "fs:default"
   ]
 }

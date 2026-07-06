@@ -28,7 +28,7 @@ export const rebuildIndex = () => invoke<number>("rebuild_index");
 export const recoveryRequired = () => invoke<boolean>("recovery_required");
 
 export const listProviders = () => invoke<ProviderInfo[]>("list_providers");
-export const enableProvider = (name: string, enabled: boolean, configJson?: string) =>
+export const enableProvider = (name: string, enabled: boolean, configJson?: string | null) =>
   invoke<void>("enable_provider", { name, enabled, configJson });
 export const testProvider = (name: string) =>
   invoke<ProviderStatus>("test_provider", { name });

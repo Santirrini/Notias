@@ -13,8 +13,9 @@
 | 4 | Estudio autónomo | `phase-4-estudio` | SM-2 SRS + quiz generator + weekly plan + tasks kanban |
 | 5 | Sync opcional | `phase-5-sync` | Manual zip export/import + startup rebuild + folder watcher |
 | 6 | Calendar (post-MVP) | `phase-6-calendar` | Google OAuth PKCE + Calendar API v3 + local mirror |
+| 7 | UI redesign (post-MVP) | `phase-7-ui-redesign` | 3-panel chrome (NavRail/Sections/Pages/NoteCanvas) + CommandPalette + RecoveryBanner + secrets IPC merge |
 
-Total: **68 commits** on `main`.
+Total: **52 commits** on `main`.
 
 ## Architecture
 
@@ -71,7 +72,7 @@ Phase 7 (UI redesign) verification is independent — see `docs/test-checklist-u
 |------|--------|
 | OAuth client_id compiled into binary (phase 6) | Acceptable for personal/educational use; document a backend-proxy approach before enterprise distribution |
 | Embedding-model drift (phase 2) | Re-embed command + per-row `model` column in `note_embeddings` already in schema; UX lands when user switches models |
-| DB corruption (phase 0) | `notias.meta` sidecar + `db_hash`; recovery screen logic is partial in `lib.rs` (`recovery_required` flag exposed via Tauri command; full rebuild UX in `commands::recovery_required` consumer) |
+| DB corruption (phase 0) | `notias.meta` sidecar + `db_hash`; full rebuild UX shipped in phase 7 (`RecoveryBanner.svelte` reads `recovery_required()` and calls `rebuildIndex()`). |
 | Sync conflicts (phase 5) | Last-write-wins on `.md` mtime via watcher; CRDT explicitly out of scope |
 | Bundle size (phase 0) | SvelteKit lean, no font/icon packs beyond what's used |
 

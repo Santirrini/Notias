@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { srs } from '$lib/stores/srs.svelte';
   import { generateCards } from '$lib/ipc';
+  import { PartyPopper } from '@lucide/svelte';
   import type { DraftCard } from '$lib/types';
 
   let { noteId }: { noteId?: string } = $props();
@@ -82,7 +83,9 @@
       <button onclick={() => srs.skip()}>Skip</button>
     {/if}
   {:else}
-    <p class="empty">Nothing due. 🎉</p>
+    <p class="empty">
+      <PartyPopper size={16} /> Nothing due.
+    </p>
   {/if}
 </section>
 
@@ -97,6 +100,6 @@
   .drafts { margin: 1rem 0; padding: 0.5rem; background: #111; border-radius: 0.5rem; }
   .drafts div { display: flex; gap: 0.5rem; align-items: center; padding: 0.4rem 0; }
   .drafts button { margin-left: auto; }
-  .empty { opacity: 0.7; }
+  .empty { opacity: 0.7; display: inline-flex; align-items: center; gap: 0.4rem; }
   .err { color: #f44; }
 </style>

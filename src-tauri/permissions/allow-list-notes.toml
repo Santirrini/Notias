@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-list-notes"
+description = "Lists all notes (summary metadata only)."
+commands.allow = ["list_notes"]

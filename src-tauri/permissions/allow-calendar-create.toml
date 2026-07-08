@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-create"
+description = "Creates an event on Google Calendar."
+commands.allow = ["calendar_create"]

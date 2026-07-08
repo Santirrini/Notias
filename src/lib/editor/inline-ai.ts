@@ -1,6 +1,18 @@
-import { aiComplete } from '$lib/ipc';
+/**
+ * Inline AI suggestions.
+ *
+ * The class is now a tiny orchestrator: it does the AI call, deduplicates
+ * against the last-seen text, and surfaces the result via a callback. The
+ * caller (Milkdown.svelte) is responsible for:
+ *   - debouncing (idle timer on transactions)
+ *   - positioning (coordsAtCursor)
+ *   - inserting (insertTextAtCursor) on accept
+ *
+ * Keeping this module UI-agnostic means we can unit-test it later and reuse
+ * the same flow from other surfaces (e.g. a chat sidebar).
+ */
 
-const DEBOUNCE_MS = 700;
+import { safeAiComplete } from "$lib/stores/backend.svelte";
 
 export interface InlineSuggestion {
   text: string;
@@ -8,51 +20,70 @@ export interface InlineSuggestion {
   onDismiss: () => void;
 }
 
+export type SuggestCallback = (s: InlineSuggestion | null) => void;
+export type ErrorCallback = (msg: string) => void;
+
 export class InlineAi {
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private lastText = '';
+  private lastText = "";
   private current: InlineSuggestion | null = null;
+  private inflight = false;
 
   constructor(
     private readonly getText: () => string,
-    private readonly onSuggest: (s: InlineSuggestion | null) => void,
+    private readonly onSuggest: SuggestCallback,
+    private readonly onError?: ErrorCallback,
   ) {}
 
-  trigger() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(async () => {
-      const text = this.getText();
-      if (!text || text === this.lastText) return;
-      this.lastText = text;
-      try {
-        const completion = await aiComplete(text + '\n');
-        const cont = strip_continuation(completion);
-        if (cont) {
-          const self = this;
-          this.current = {
-            text: cont,
-            onAccept: () => { self.current = null; self.onSuggest(null); },
-            onDismiss: () => { self.current = null; self.onSuggest(null); },
-          };
-          this.onSuggest(this.current);
-        }
-      } catch (e) {
-        // ponytail: silent failure; UI shows nothing.
+  /** Run an AI completion against the current editor text. No debounce — caller controls timing. */
+  async trigger(): Promise<void> {
+    if (this.inflight) return;
+    const text = this.getText();
+    if (!text || text === this.lastText) return;
+    this.lastText = text;
+    this.inflight = true;
+    try {
+      const completion = await safeAiComplete(text + "\n");
+      if (completion == null) {
+        // Backend offline / provider missing — surface to caller silently.
+        this.onError?.("AI unavailable");
+        return;
       }
-    }, DEBOUNCE_MS);
+      const cleaned = stripContinuation(completion);
+      if (!cleaned) return;
+      this.current = {
+        text: cleaned,
+        onAccept: () => this.dismiss(),
+        onDismiss: () => this.dismiss(),
+      };
+      this.onSuggest(this.current);
+    } finally {
+      this.inflight = false;
+    }
+  }
+
+  /** Force-trigger regardless of dedupe (used by the manual "✨ Suggest" button). */
+  async force(): Promise<void> {
+    this.lastText = "";
+    await this.trigger();
+  }
+
+  dismiss() {
+    this.current = null;
+    this.onSuggest(null);
   }
 
   cancel() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    if (this.current) {
-      this.current = null;
-      this.onSuggest(null);
-    }
+    this.dismiss();
+  }
+
+  /** True if a suggestion is currently shown. */
+  get hasSuggestion(): boolean {
+    return this.current !== null;
   }
 }
 
-function strip_continuation(s: string): string {
-  const cut = s.indexOf('\n\n');
-  return cut >= 0 ? s.slice(0, cut) : s.trim();
+function stripContinuation(s: string): string {
+  const cut = s.indexOf("\n\n");
+  const out = cut >= 0 ? s.slice(0, cut) : s;
+  return out.trim();
 }

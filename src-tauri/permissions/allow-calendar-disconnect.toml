@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-disconnect"
+description = "Disconnects Google Calendar (drops tokens and mirror)."
+commands.allow = ["calendar_disconnect"]

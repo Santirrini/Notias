@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-list-tasks"
+description = "Lists kanban tasks (optionally filtered by status)."
+commands.allow = ["list_tasks"]

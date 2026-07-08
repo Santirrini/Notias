@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use crate::error::{AppError, AppResult};
+use async_trait::async_trait;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderStatus {
@@ -41,6 +42,7 @@ pub struct ChatChunk {
     pub text: String,
 }
 
+#[async_trait]
 pub trait Provider: Send + Sync {
     fn name(&self) -> &'static str;
     async fn health(&self) -> AppResult<ProviderStatus>;

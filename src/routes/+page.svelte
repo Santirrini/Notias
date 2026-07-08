@@ -1,29 +1,374 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import {
+    Home,
+    CheckCircle2,
+    AlertCircle,
+    RefreshCw,
+    NotebookText,
+    MessageSquare,
+    ListTodo,
+    Calendar,
+    GraduationCap,
+    Sparkles,
+    Settings as SettingsIcon,
+    ArrowRight,
+    BookOpen,
+    Cloud,
+    Zap,
+  } from "@lucide/svelte";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import PageHeader from "$lib/components/PageHeader.svelte";
+  import SectionCard from "$lib/components/SectionCard.svelte";
+  import OfflineCallout from "$lib/components/OfflineCallout.svelte";
+  import { backend } from "$lib/stores/backend.svelte";
   import { ping } from "$lib/ipc";
-  import type { WireError } from "$lib/types";
+  import { goto } from "$app/navigation";
 
   let result = $state<string | null>(null);
   let error = $state<string | null>(null);
+  let checking = $state(false);
 
-  onMount(async () => {
+  async function check() {
+    checking = true;
+    error = null;
     try {
       result = await ping();
+      backend.setAvailable();
     } catch (e) {
-      error = (e as WireError).message;
+      error = (e as { message?: string }).message ?? "Unknown error";
+      backend.setUnavailable(error);
+    } finally {
+      checking = false;
     }
+  }
+
+  onMount(() => {
+    if (backend.available) check();
   });
+
+  const shortcuts = [
+    {
+      href: "/notes",
+      kbd: ["Ctrl", "N"],
+      icon: NotebookText,
+      title: "New page",
+      hint: "Auto-saves to /notes on disk",
+    },
+    {
+      href: "/chat",
+      kbd: ["Ctrl", "K"],
+      icon: MessageSquare,
+      title: "Command palette",
+      hint: "Search, jump, run actions",
+    },
+    {
+      href: "/study",
+      kbd: ["Ctrl", "Shift", "L"],
+      icon: GraduationCap,
+      title: "Toggle theme",
+      hint: "Light / dark mode",
+    },
+    {
+      href: "/settings",
+      kbd: ["Ctrl", ","],
+      icon: SettingsIcon,
+      title: "Settings",
+      hint: "Providers, sync, calendar",
+    },
+  ];
+
+  const features = [
+    {
+      icon: BookOpen,
+      title: "Local-first notes",
+      body: "Markdown stored on your disk. RAG-ready index lives next to it.",
+    },
+    {
+      icon: Sparkles,
+      title: "Local + cloud AI",
+      body: "Ollama runs offline; OpenAI/Groq fallback when you want more power.",
+    },
+    {
+      icon: ListTodo,
+      title: "Tasks & study",
+      body: "Kanban board, SM-2 spaced repetition, AI-generated quizzes and weekly plans.",
+    },
+    {
+      icon: Calendar,
+      title: "Calendar mirror",
+      body: "OAuth PKCE to Google Calendar with last-write-wins local mirror.",
+    },
+    {
+      icon: Cloud,
+      title: "Manual sync",
+      body: "Zip export/import. Bring your own cloud-storage app — your data never leaves.",
+    },
+    {
+      icon: Zap,
+      title: "Slash + AI inline",
+      body: "Type `/` for blocks, AI continues your writing right where the cursor is.",
+    },
+  ];
 </script>
 
-<main>
-  <h1>Notias</h1>
-  {#if error}<p class="err">{error}</p>
-  {:else if result}<p>Backend says: <code>{result}</code></p>
-  {:else}<p>Loading…</p>{/if}
-</main>
+<PageHeader
+  title="Welcome to Notias"
+  description="Local-first Markdown notes with integrated AI."
+>
+  {#snippet icon()}<Home size={22} />{/snippet}
+</PageHeader>
+
+<div class="page-pad">
+  {#if !backend.available}
+    <OfflineCallout
+      variant="info"
+      title="Backend not reachable"
+      description="Notias is loading inside a plain browser. Run via `pnpm tauri dev` to unlock the full UI."
+      dismissable={true}
+    />
+  {/if}
+
+  <SectionCard title="Backend status" description="Round-trip ping to Tauri core.">
+    {#snippet icon()}<Cloud size={14} />{/snippet}
+    <div class="status-row">
+      {#if result}
+        <Badge class="ok"><CheckCircle2 size={12} /> Reachable</Badge>
+        <code class="pong">{result}</code>
+      {:else if error}
+        <Badge variant="destructive">
+          <AlertCircle size={12} /> Unreachable
+        </Badge>
+        <code class="err">{error}</code>
+      {:else}
+        <Badge variant="outline"><LoaderDot /> Checking…</Badge>
+      {/if}
+      <Button variant="outline" size="sm" onclick={check} disabled={checking}>
+        <RefreshCw size={12} class={checking ? "animate-spin" : ""} />
+        {checking ? "Pinging…" : "Check again"}
+      </Button>
+    </div>
+  </SectionCard>
+
+  <SectionCard title="Quick start" description="Open one of the workspaces.">
+    {#snippet icon()}<Zap size={14} />{/snippet}
+    <div class="shortcuts">
+      {#each shortcuts as s}
+        <button type="button" class="shortcut" onclick={() => goto(s.href)}>
+          <span class="shortcut-icon">
+            <s.icon size={18} />
+          </span>
+          <div class="shortcut-body">
+            <strong>{s.title}</strong>
+            <span class="hint">{s.hint}</span>
+          </div>
+          <span class="shortcut-kbd">
+            {#each s.kbd as k, i}<kbd>{k}</kbd>{#if i < s.kbd.length - 1}<span class="plus">+</span>{/if}{/each}
+          </span>
+          <ArrowRight size={14} class="arrow" />
+        </button>
+      {/each}
+    </div>
+  </SectionCard>
+
+  <SectionCard title="What's inside" description="A quick tour of the features.">
+    <div class="features">
+      {#each features as f}
+        <article class="feature">
+          <span class="feature-icon"><f.icon size={16} /></span>
+          <div>
+            <strong>{f.title}</strong>
+            <p>{f.body}</p>
+          </div>
+        </article>
+      {/each}
+    </div>
+  </SectionCard>
+</div>
+
+{#snippet LoaderDot()}
+  <span class="dot-loader" aria-hidden="true"></span>
+{/snippet}
 
 <style>
-  main { padding: 2rem; font-family: ui-sans-serif, system-ui, sans-serif; }
-  .err { color: #c00; }
-  code { background: #f4f4f4; padding: 0 0.3em; border-radius: 3px; }
+  .page-pad {
+    padding: 1rem 1.5rem 2rem;
+    max-width: 980px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+  }
+  .pong {
+    background: var(--color-success-subtle);
+    color: var(--color-success);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  .err {
+    background: var(--color-destructive-subtle);
+    color: var(--color-destructive);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  :global(.ok) {
+    background: var(--color-success-subtle);
+    color: var(--color-success);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .dot-loader {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    border: 2px solid var(--color-muted);
+    border-top-color: var(--color-accent);
+    animation: spin 0.7s linear infinite;
+    margin-right: 4px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  :global(.animate-spin) {
+    animation: spin 1s linear infinite;
+  }
+
+  .shortcuts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.625rem;
+  }
+  .shortcut {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: inherit;
+    transition: border-color 120ms ease, transform 100ms ease, box-shadow 120ms ease, background 120ms ease;
+  }
+  .shortcut:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-subtle);
+  }
+  .shortcut:hover :global(.arrow) {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--color-accent);
+  }
+  .shortcut:active {
+    transform: scale(0.99);
+  }
+  .shortcut-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .shortcut-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .shortcut-body strong {
+    font-size: 0.9rem;
+    color: var(--color-foreground);
+  }
+  .hint {
+    font-size: 0.75rem;
+    color: var(--color-muted-foreground);
+  }
+  .shortcut-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+  }
+  .shortcut-kbd kbd {
+    background: var(--color-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-muted-foreground);
+  }
+  .shortcut-kbd .plus {
+    color: var(--color-muted-foreground);
+    font-size: 0.65rem;
+  }
+  :global(.shortcut .arrow) {
+    color: var(--color-muted-foreground);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 100ms ease, transform 100ms ease, color 100ms ease;
+    flex-shrink: 0;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.75rem;
+  }
+  .feature {
+    display: flex;
+    gap: 0.625rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .feature:hover {
+    border-color: var(--color-border);
+    background: var(--color-muted);
+  }
+  .feature-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .feature strong {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--color-foreground);
+  }
+  .feature p {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: var(--color-muted-foreground);
+    line-height: 1.5;
+  }
 </style>

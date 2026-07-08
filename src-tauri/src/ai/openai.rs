@@ -78,6 +78,7 @@ async fn status_detail(r: Response) -> ProviderStatus {
     }
 }
 
+#[async_trait::async_trait]
 impl Provider for OpenAiProvider {
     fn name(&self) -> &'static str { "openai" }
 

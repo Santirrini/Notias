@@ -1,6 +1,5 @@
 <script lang="ts">
-  import NoteTree from "$lib/components/NoteTree.svelte";
+  import PageList from "$lib/components/PageList.svelte";
 </script>
 
-<h1>Notes</h1>
-<NoteTree />
+<PageList />

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-rag-search"
+description = "Runs a RAG (retrieval-augmented) semantic search over notes."
+commands.allow = ["rag_search"]

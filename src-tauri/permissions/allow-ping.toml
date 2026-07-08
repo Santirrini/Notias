@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ping"
+description = "Returns 'pong'. Used as a health check from the frontend."
+commands.allow = ["ping"]

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-enable-provider"
+description = "Enables or disables an AI provider and persists its config."
+commands.allow = ["enable_provider"]

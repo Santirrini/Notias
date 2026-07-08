@@ -11,6 +11,10 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error("yaml: {0}")]
     Yaml(#[from] serde_yaml::Error),
+    #[error("keyring: {0}")]
+    Keyring(#[from] keyring::Error),
+    #[error("zip: {0}")]
+    Zip(#[from] zip::result::ZipError),
     #[error("config: {0}")]
     Config(String),
     #[error("not found: {0}")]
@@ -35,6 +39,8 @@ impl Serialize for AppError {
             AppError::Io(_) => "io",
             AppError::Db(_) => "db",
             AppError::Json(_) | AppError::Yaml(_) => "serialization", // ponytail: prefix-free wire codes; the message string carries the variant name.
+            AppError::Keyring(_) => "auth",
+            AppError::Zip(_) => "io",
             AppError::Config(_) => "config",
             AppError::NotFound(_) => "not_found",
             AppError::Invalid(_) => "invalid",

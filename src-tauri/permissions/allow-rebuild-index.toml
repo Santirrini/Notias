@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-rebuild-index"
+description = "Rebuilds the FTS5 index from disk."
+commands.allow = ["rebuild_index"]

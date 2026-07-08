@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ai-summarize"
+description = "Summarizes the given text using the AI router."
+commands.allow = ["ai_summarize"]

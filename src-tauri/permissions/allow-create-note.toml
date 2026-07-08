@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-create-note"
+description = "Creates a new note (Markdown + YAML frontmatter on disk, row in index)."
+commands.allow = ["create_note"]

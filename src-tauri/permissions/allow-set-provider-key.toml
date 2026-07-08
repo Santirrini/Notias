@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-set-provider-key"
+description = "Stores an API key (e.g. OpenAI, Groq) in the OS keyring."
+commands.allow = ["set_provider_key"]

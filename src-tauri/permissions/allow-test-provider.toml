@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-test-provider"
+description = "Sends a test request to an AI provider to verify connectivity."
+commands.allow = ["test_provider"]

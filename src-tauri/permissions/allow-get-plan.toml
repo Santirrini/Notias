@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-get-plan"
+description = "Returns a saved weekly study plan."
+commands.allow = ["get_plan"]

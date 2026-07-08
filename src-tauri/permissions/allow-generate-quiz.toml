@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-generate-quiz"
+description = "Generates a quiz (mc/short/cloze) via the AI router."
+commands.allow = ["generate_quiz"]

@@ -1,0 +1,553 @@
+<script lang="ts">
+  import { onDestroy } from "svelte";
+  import {
+    Cloud,
+    Loader2,
+    CloudOff,
+    Hash,
+    MoreHorizontal,
+    Tag,
+    Plus,
+    Trash2,
+    X as XIcon,
+    Check,
+    CircleAlert,
+  } from "@lucide/svelte";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Input } from "$lib/components/ui/input/index.js";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+  import { notes } from "$lib/stores/notes.svelte";
+  import { backend } from "$lib/stores/backend.svelte";
+  import { toast } from "svelte-sonner";
+  import { goto } from "$app/navigation";
+  import { deleteNote } from "$lib/ipc";
+  import Milkdown, {
+    type MilkdownHandle,
+  } from "$lib/editor/Milkdown.svelte";
+  import EditorToolbar from "$lib/components/EditorToolbar.svelte";
+  import EditorStatus from "$lib/components/EditorStatus.svelte";
+  import SlashMenu from "$lib/components/SlashMenu.svelte";
+  import AudioRecorder from "$lib/components/AudioRecorder.svelte";
+
+  type SaveState = "idle" | "saving" | "saved" | "dirty" | "error";
+
+  let {
+    id,
+    initialTitle = "",
+    initialBody = "",
+  }: {
+    id: string;
+    initialTitle?: string;
+    initialBody?: string;
+  } = $props();
+
+  let title = $state(initialTitle);
+  // svelte-ignore state_referenced_locally
+  let body = $state(initialBody);
+  let saveState: SaveState = $state("idle");
+  let lastSavedAt = $state<Date | null>(null);
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let editorHandle = $state<MilkdownHandle | null>(null);
+  let tagInputOpen = $state(false);
+  let tagInput = $state("");
+  let tagInputRef = $state<HTMLElement | null>(null);
+  let audioOpen = $state(false);
+  let titleFocused = $state(false);
+
+  const words = $derived(
+    body.trim() ? body.trim().split(/\s+/).filter(Boolean).length : 0,
+  );
+  const chars = $derived(body.length);
+
+  const currentTags = $derived(notes.list.find((n) => n.id === id)?.tags ?? []);
+
+  function scheduleSave() {
+    saveState = "dirty";
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 700);
+  }
+
+  async function flush() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    saveState = "saving";
+    try {
+      await notes.save(id, { title, body });
+      saveState = "saved";
+      lastSavedAt = new Date();
+    } catch {
+      saveState = "error";
+    }
+  }
+
+  function onTitle(e: Event) {
+    title = (e.target as HTMLInputElement).value;
+    scheduleSave();
+  }
+
+  function onBody(v: string) {
+    body = v;
+    scheduleSave();
+  }
+
+  onDestroy(() => {
+    if (saveState === "dirty" || saveState === "saving") {
+      void notes.save(id, { title, body });
+    }
+  });
+
+  function startTagInput() {
+    tagInputOpen = true;
+    tagInput = "";
+    requestAnimationFrame(() => tagInputRef?.focus());
+  }
+
+  function cancelTagInput() {
+    tagInputOpen = false;
+    tagInput = "";
+  }
+
+  function addTag() {
+    const t = tagInput.trim().replace(/^#/, "").toLowerCase();
+    if (!t) {
+      tagInputOpen = false;
+      return;
+    }
+    const note = notes.list.find((n) => n.id === id);
+    const current = note?.tags ?? [];
+    if (current.includes(t)) {
+      toast.info("Already tagged", { description: `#${t}` });
+      tagInputOpen = false;
+      tagInput = "";
+      return;
+    }
+    notes.save(id, { title }).then(() => {
+      try {
+        const KEY = "notias.localNotes.v1";
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return;
+        const list = JSON.parse(raw) as { id: string; tags: string[] }[];
+        const idx = list.findIndex((n) => n.id === id);
+        if (idx < 0) return;
+        list[idx].tags = [...(list[idx].tags ?? []), t];
+        localStorage.setItem(KEY, JSON.stringify(list));
+      } catch {
+        /* ignore */
+      }
+      tagInput = "";
+      tagInputOpen = false;
+      toast.success("Tag added", { description: `#${t}` });
+      notes.refresh();
+    });
+  }
+
+  function removeTag(t: string) {
+    try {
+      const KEY = "notias.localNotes.v1";
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      const list = JSON.parse(raw) as { id: string; tags: string[] }[];
+      const idx = list.findIndex((n) => n.id === id);
+      if (idx < 0) return;
+      list[idx].tags = (list[idx].tags ?? []).filter((x) => x !== t);
+      localStorage.setItem(KEY, JSON.stringify(list));
+      toast.success("Tag removed", { description: `#${t}` });
+      notes.refresh();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function duplicate() {
+    try {
+      const n = await notes.create(title || "Untitled copy");
+      await notes.save(n.id, { body });
+      goto(`/notes/${n.id}`);
+      toast.success("Duplicated");
+    } catch {
+      toast.error("Cannot duplicate while offline");
+    }
+  }
+
+  async function remove() {
+    try {
+      await deleteNote(id);
+      notes.refresh();
+    } catch {
+      /* local-only delete */
+    }
+    try {
+      const all = JSON.parse(
+        localStorage.getItem("notias.localNotes.v1") ?? "[]",
+      ) as { id: string }[];
+      localStorage.setItem(
+        "notias.localNotes.v1",
+        JSON.stringify(all.filter((n) => n.id !== id)),
+      );
+    } catch {
+      /* ignore */
+    }
+    notes.refresh();
+    goto("/notes");
+  }
+</script>
+
+<article class="canvas">
+  <header class="head">
+    <input
+      class="title"
+      class:focused={titleFocused}
+      type="text"
+      placeholder="Untitled — click to add a title"
+      value={title}
+      oninput={onTitle}
+      onfocus={() => (titleFocused = true)}
+      onblur={() => (titleFocused = false)}
+      aria-label="Note title"
+      spellcheck="false"
+    />
+
+    <div class="head-actions">
+      <div class="save-state" data-state={saveState} title={label(saveState, lastSavedAt)}>
+        {#if saveState === "saving"}
+          <Loader2 size={12} class="spin" />
+          <span>Saving…</span>
+        {:else if saveState === "error"}
+          <CloudOff size={12} />
+          <span>Save failed</span>
+        {:else if saveState === "dirty"}
+          <CircleAlert size={12} />
+          <span>Unsaved</span>
+        {:else}
+          <Check size={12} />
+          <span>Saved</span>
+        {/if}
+      </div>
+
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          {#snippet child({ props })}
+            <Button variant="ghost" size="icon-sm" aria-label="More" {...props}>
+              <MoreHorizontal size={14} />
+            </Button>
+          {/snippet}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" sideOffset={4} class="w-52">
+          <DropdownMenu.Item onclick={duplicate}>
+            <Plus size={12} /> Duplicate
+          </DropdownMenu.Item>
+          <DropdownMenu.Item disabled>
+            <Tag size={12} /> Export Markdown
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item variant="destructive" onclick={remove}>
+            <Trash2 size={12} />
+            Delete note
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </div>
+  </header>
+
+  <div class="meta">
+    <div class="left">
+      <span class="meta-pill">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+      <span class="meta-pill">{chars.toLocaleString()} chars</span>
+      <span class="meta-pill">{readingTime(words)} read</span>
+      {#if !backend.available}
+        <span class="meta-pill warn"><CloudOff size={10} /> offline</span>
+      {/if}
+    </div>
+    <div class="right">
+      <EditorStatus
+        state={saveState}
+        {lastSavedAt}
+        wordCount={words}
+        charCount={chars}
+      />
+    </div>
+  </div>
+
+  <div class="tags">
+    {#each currentTags as t (t)}
+      <span class="tag">
+        <Hash size={10} />
+        <span>{t}</span>
+        <button
+          type="button"
+          class="tag-x"
+          onclick={() => removeTag(t)}
+          aria-label={`Remove tag ${t}`}
+        >
+          <XIcon size={9} />
+        </button>
+      </span>
+    {/each}
+    {#if tagInputOpen}
+<Input
+        bind:ref={tagInputRef}
+        class="tag-input"
+        placeholder="add tag…"
+        bind:value={tagInput}
+        onkeydown={(e) => {
+          if (e.key === "Enter") addTag();
+          if (e.key === "Escape") cancelTagInput();
+        }}
+        onblur={() => {
+          if (tagInput.trim()) addTag();
+          else cancelTagInput();
+        }}
+      />
+    {:else}
+      <button
+        type="button"
+        class="add-tag"
+        onclick={startTagInput}
+        aria-label="Add tag"
+      >
+        <Tag size={11} /> add tag
+      </button>
+    {/if}
+  </div>
+
+  <div class="editor-row">
+    <EditorToolbar
+      handle={editorHandle}
+      body={body}
+      title={title}
+      onRecordClick={() => (audioOpen = !audioOpen)}
+    />
+  </div>
+
+  {#if audioOpen}
+    <div class="audio-row">
+      <AudioRecorder
+        onInsert={(text) => {
+          editorHandle?.insertTextAtCursor("\n\n" + text + "\n\n");
+          audioOpen = false;
+        }}
+      />
+    </div>
+  {/if}
+
+  <div class="editor-host">
+    <Milkdown
+      initial={initialBody}
+      bind:handle={editorHandle}
+      onChange={onBody}
+    />
+  </div>
+
+  <SlashMenu handle={editorHandle} body={body} title={title} />
+</article>
+
+<!-- Icons used in dropdown items above -->
+
+<script module lang="ts">
+  function label(s: "idle" | "saving" | "saved" | "dirty" | "error", last: Date | null): string {
+    if (s === "saving") return "Saving…";
+    if (s === "dirty") return "Unsaved changes";
+    if (s === "error") return "Save failed";
+    if (s === "saved" && last) return `Saved ${last.toLocaleTimeString()}`;
+    return "All changes saved";
+  }
+  function readingTime(words: number): string {
+    const m = Math.max(1, Math.round(words / 200));
+    return `${m} min`;
+  }
+</script>
+
+<style>
+  .canvas {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.5rem 3rem 4rem;
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .title {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-foreground);
+    font-family: inherit;
+    padding: 0.25rem 0;
+    border-radius: var(--radius-sm);
+    transition: background 120ms ease;
+  }
+  .title.focused {
+    background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  }
+  .title::placeholder {
+    color: var(--color-subtle-foreground);
+  }
+
+  .head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .save-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.625rem;
+    font-size: 0.75rem;
+    border-radius: 999px;
+    background: var(--color-muted);
+    color: var(--color-muted-foreground);
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .save-state[data-state="saving"] {
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+    color: var(--color-warning, #ffb900);
+  }
+  .save-state[data-state="saved"] {
+    background: color-mix(in srgb, var(--color-success) 14%, transparent);
+    color: var(--color-success, #107c10);
+  }
+  .save-state[data-state="dirty"] {
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+    color: var(--color-warning, #ffb900);
+  }
+  .save-state[data-state="error"] {
+    background: var(--color-destructive-subtle);
+    color: var(--color-destructive);
+  }
+  :global(.save-state .spin) {
+    animation: nc-spin 1s linear infinite;
+  }
+  @keyframes nc-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-muted-foreground);
+  }
+  .left,
+  .right {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--color-muted);
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    color: var(--color-muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-pill.warn {
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+    color: var(--color-warning, #ffb900);
+  }
+
+  .tags {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.25rem;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    padding: 0.125rem 0.5rem 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .tag-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border: 0;
+    background: transparent;
+    color: var(--color-accent);
+    opacity: 0.6;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 100ms ease, background 100ms ease;
+  }
+  .tag-x:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  .add-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: transparent;
+    border: 1px dashed var(--color-border);
+    color: var(--color-muted-foreground);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    transition: color 100ms ease, border-color 100ms ease, background 100ms ease;
+    line-height: 1.4;
+  }
+  .add-tag:hover {
+    color: var(--color-foreground);
+    border-color: var(--color-accent);
+    background: var(--color-accent-subtle);
+  }
+
+  :global(.tag-input) {
+    height: 1.625rem;
+    width: 8.5rem;
+    font-size: 0.7rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+  }
+
+  .editor-row {
+    padding-top: 0.25rem;
+  }
+  .audio-row {
+    padding: 0.5rem 0;
+    border-top: 1px dashed var(--color-border);
+  }
+  .editor-host {
+    padding-top: 0.5rem;
+  }
+</style>

@@ -1,11 +1,11 @@
 use crate::ai::provider::Provider;
 use crate::error::{AppError, AppResult};
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub async fn run(note_id: String, app: tauri::AppHandle) -> AppResult<()> {
     let state = app.state::<crate::AppState>();
-    let provider = state.router.ollama.clone()
+    let provider = state.router.local_only().await
         .ok_or_else(|| AppError::Config("ollama not configured".into()))?;
     let embed_model = "nomic-embed-text".to_string();
 

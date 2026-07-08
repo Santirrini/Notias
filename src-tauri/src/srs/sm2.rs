@@ -114,7 +114,7 @@ mod tests {
         s = review(s, 4, "2026-07-06T00:00:00Z");
         s = review(s, 4, "2026-07-07T00:00:00Z");
         s = review(s, 4, "2026-07-13T00:00:00Z");
-        let expected = (6.0 * s.ease).round().max(1) as u32;
+        let expected = (6.0 * s.ease).round().max(1.0) as u32;
         assert_eq!(s.interval_days, expected);
     }
 

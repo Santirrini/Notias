@@ -39,17 +39,21 @@ Keys    OS keyring         ← provider_api_keys, google_calendar
 Meta    notias.meta        ← db_hash + schema_version (integrity)
 ```
 
-## Verification Status (this host)
+## Verification Status (this host, 2026-07-06 baseline)
 
-| Check | Result |
-|-------|--------|
-| `pnpm build` (frontend) | **PASS** throughout phases 1–6 |
-| `cargo check` (Rust) | **BLOCKED** — Windows SDK Lib missing (`kernel32.lib`); only MSVC `link.exe` present, no SDK Lib dir |
-| `cargo test --lib` | **BLOCKED** — same linker blocker; 30+ unit tests written, unrunnable here |
-| `cargo run --example selfcheck` | **BLOCKED** — same; `selfcheck.rs` seeds rows + asserts invariants per phase |
-| `pnpm tauri dev` | **NOT WITNESSED** on this host (needs full SDK); README documents it |
+| Check | Result | Notes |
+|-------|--------|-------|
+| `pnpm build` (frontend) | **PASS** | SvelteKit static build |
+| `cargo check` (Rust) | **PASS** | 0 errors, 3 warnings (unused imports/vars) |
+| `cargo test --lib` | **PASS** | 62 passed, 0 failed, 1 ignored (keyring smoke) |
+| `cargo run --example selfcheck` | **PASS** | phases 3–6 invariants verified |
+| `pnpm tauri build` | **PASS** | MSI + NSIS produced |
+| Release `.exe` smoke launch | **PASS** | WebView2 spawns, no crash |
+| `pnpm tauri dev` | **PASS** | window opens, sidebar + Notes/Chat/Calendar/Settings/Tasks/Study render |
 
-To verify locally: install Windows SDK Lib (or run on a host that has it) → `cd src-tauri && cargo test --lib && cargo run --example selfcheck && pnpm tauri build`.
+Toolchain confirmed: MSVC v14.44.35207 + Windows SDK 10.0.28000 (full, including Lib dir).
+
+Phase 7 (UI redesign) verification is independent — see `docs/test-checklist-ui.md`. Re-run `pnpm check && pnpm tauri build` on the phase-7 branch to confirm before merge.
 
 ## Deferred (acknowledged, by phase)
 

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-save-plan"
+description = "Persists a weekly study plan."
+commands.allow = ["save_plan"]

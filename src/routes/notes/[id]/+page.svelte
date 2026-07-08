@@ -1,33 +1,30 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import { notes } from "$lib/stores/notes.svelte";
-  import Milkdown from "$lib/editor/Milkdown.svelte";
+  import { page } from "$app/state";
   import { onMount } from "svelte";
+  import { notes } from "$lib/stores/notes.svelte";
+  import NoteCanvas from "$lib/components/NoteCanvas.svelte";
 
-  const id = $derived($page.params.id);
-  let title = $state("");
-  let body = $state("");
-  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  const id = $derived(page.params.id ?? "");
 
   onMount(async () => {
     if (!id) return;
     await notes.load(id);
-    if (notes.current) {
-      title = notes.current.title;
-      body = notes.current.body;
-    }
   });
-
-  function scheduleSave() {
-    if (!id) return;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => notes.save(id, { title, body }), 1500);
-  }
 </script>
 
-{#if notes.current}
-  <input bind:value={title} oninput={scheduleSave} placeholder="Title" />
-  <Milkdown initial={body} onChange={(v) => { body = v; scheduleSave(); }} />
+{#if notes.current && id === notes.current.id}
+  <NoteCanvas
+    {id}
+    initialTitle={notes.current.title}
+    initialBody={notes.current.body}
+  />
 {:else}
-  <p>Loading…</p>
+  <p class="hint">Loading…</p>
 {/if}
+
+<style>
+  .hint {
+    padding: 2rem;
+    color: var(--color-muted-foreground);
+  }
+</style>

@@ -1,38 +1,81 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import SRSReviewer from '$lib/components/SRSReviewer.svelte';
-  import QuizRunner from '$lib/components/QuizRunner.svelte';
-  import WeeklyPlan from '$lib/components/WeeklyPlan.svelte';
+  import { page } from "$app/state";
+  import {
+    GraduationCap,
+    BrainCircuit,
+    ListChecks,
+    CalendarRange,
+  } from "@lucide/svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
+  import OfflineCallout from "$lib/components/OfflineCallout.svelte";
+  import { Tabs, TabsContent, TabsList, TabsTrigger } from "$lib/components/ui/tabs/index.js";
+  import { backend } from "$lib/stores/backend.svelte";
+  import SRSReviewer from "$lib/components/SRSReviewer.svelte";
+  import QuizRunner from "$lib/components/QuizRunner.svelte";
+  import WeeklyPlan from "$lib/components/WeeklyPlan.svelte";
 
-  let tab = $state<'today' | 'quizzes' | 'plan'>('today');
+  let tab = $state<"today" | "quizzes" | "plan">("today");
   let selectedNoteIds = $state<string[]>([]);
 
-  // ponytail: read selectedNote from query string for the Today tab to enable
-  // "Generate cards" — passing via URL keeps the SRS component reusable.
   $effect(() => {
-    selectedNoteIds = page.url.searchParams.getAll('note');
+    selectedNoteIds = page.url.searchParams.getAll("note");
   });
 </script>
 
-<main>
-  <nav class="tabs">
-    <button class:active={tab === 'today'} onclick={() => tab = 'today'}>Today</button>
-    <button class:active={tab === 'quizzes'} onclick={() => tab = 'quizzes'}>Quizzes</button>
-    <button class:active={tab === 'plan'} onclick={() => tab = 'plan'}>Plan</button>
-  </nav>
+<PageHeader
+  title="Study"
+  description="Spaced repetition, auto-graded quizzes, weekly AI plan."
+>
+  {#snippet icon()}<GraduationCap size={22} />{/snippet}
+</PageHeader>
 
-  {#if tab === 'today'}
-    <SRSReviewer noteId={selectedNoteIds[0]} />
-  {:else if tab === 'quizzes'}
-    <QuizRunner noteIds={selectedNoteIds} />
-  {:else}
-    <WeeklyPlan />
+<div class="page-pad">
+  {#if !backend.available}
+    <OfflineCallout
+      variant="warning"
+      title="Backend not reachable"
+      description="Cards, quizzes and plans need the Tauri backend."
+    />
   {/if}
-</main>
+
+  <Tabs value={tab} onValueChange={(v) => (tab = (v as typeof tab) ?? "today")}>
+    <TabsList>
+      <TabsTrigger value="today">
+        <BrainCircuit size={13} />
+        Today
+      </TabsTrigger>
+      <TabsTrigger value="quizzes">
+        <ListChecks size={13} />
+        Quizzes
+      </TabsTrigger>
+      <TabsTrigger value="plan">
+        <CalendarRange size={13} />
+        Plan
+      </TabsTrigger>
+    </TabsList>
+
+    <TabsContent value="today">
+      <SRSReviewer noteId={selectedNoteIds[0]} />
+    </TabsContent>
+    <TabsContent value="quizzes">
+      <QuizRunner noteIds={selectedNoteIds} />
+    </TabsContent>
+    <TabsContent value="plan">
+      <WeeklyPlan />
+    </TabsContent>
+  </Tabs>
+</div>
 
 <style>
-  main { padding: 1rem; }
-  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-  .tabs button { padding: 0.5rem 1rem; }
-  .tabs button.active { background: var(--accent, #4af); color: white; }
+  .page-pad {
+    padding: 1rem 1.5rem 2rem;
+    max-width: 1100px;
+  }
+
+  :global([data-slot="tabs-trigger"]) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+  }
 </style>

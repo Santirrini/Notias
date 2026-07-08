@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-connect"
+description = "Starts the Google Calendar OAuth PKCE flow and captures the redirect."
+commands.allow = ["calendar_connect"]

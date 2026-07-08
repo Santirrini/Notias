@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-delete-task"
+description = "Deletes a kanban task."
+commands.allow = ["delete_task"]

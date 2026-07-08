@@ -5,7 +5,6 @@ use super::provider::Provider;
 use crate::error::{AppError, AppResult};
 use rusqlite::Connection;
 use std::sync::Arc;
-use tauri::async_runtime;
 use tokio::sync::RwLock;
 
 pub struct Router {
@@ -123,7 +122,7 @@ mod tests {
     #[test]
     fn router_new_without_providers_errors_on_pick() {
         let r = Router::new(None);
-        let rt = async_runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             assert!(r.pick_chat().await.is_err());
             assert!(r.pick_transcribe().await.is_err());
@@ -135,7 +134,7 @@ mod tests {
     fn router_holds_ollama_when_provided() {
         let o = Arc::new(OllamaProvider::new("http://localhost:11434", reqwest::Client::new()));
         let r = Router::new(Some(o));
-        let rt = async_runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             assert!(r.local_only().await.is_some());
         });
@@ -143,10 +142,10 @@ mod tests {
 
     #[test]
     fn reload_is_idempotent_when_no_cloud_settings() {
-        let conn = Connection::open_in_memory().unwrap();
+        let conn = crate::db::migrations::open_test_in_memory();
         crate::db::migrations::run(&conn).unwrap();
         let r = Router::new(None);
-        let rt = async_runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             r.try_reload(&conn).await.unwrap();
             r.try_reload(&conn).await.unwrap();

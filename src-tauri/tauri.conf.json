@@ -12,9 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "notias",
-        "width": 800,
-        "height": 600
+        "title": "Notias",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 720,
+        "minHeight": 480,
+        "center": true,
+        "visible": true,
+        "focus": true,
+        "decorations": true,
+        "resizable": true
       }
     ],
     "security": {

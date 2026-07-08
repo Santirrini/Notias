@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-list-providers"
+description = "Lists AI providers and their enabled/configured state."
+commands.allow = ["list_providers"]

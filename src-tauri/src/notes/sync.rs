@@ -22,7 +22,7 @@ pub fn export_zip(notes_dir: &Path) -> AppResult<Vec<u8>> {
     {
         let cursor = std::io::Cursor::new(&mut buf);
         let mut zip = zip::ZipWriter::new(cursor);
-        let opts: zip::write::FileOptions<()> = zip::write::FileOptions::default()
+        let opts: zip::write::FileOptions = zip::write::FileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
         for entry in walk_md(notes_dir)? {
             let rel = entry
@@ -239,7 +239,7 @@ mod tests {
         {
             let cursor = std::io::Cursor::new(&mut buf);
             let mut zip = zip::ZipWriter::new(cursor);
-            zip.start_file("../escape.md", zip::write::FileOptions::<()>::default()).unwrap();
+            zip.start_file("../escape.md", zip::write::FileOptions::default()).unwrap();
             zip.write_all(b"pwned").unwrap();
             zip.finish().unwrap();
         }

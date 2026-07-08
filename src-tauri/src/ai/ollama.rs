@@ -25,6 +25,7 @@ struct OllamaChatChunk {
     done: bool,
 }
 
+#[async_trait::async_trait]
 impl Provider for OllamaProvider {
     fn name(&self) -> &'static str { "ollama" }
 

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-generate-cards"
+description = "Generates SM-2 flashcards from note content via the AI router."
+commands.allow = ["generate_cards"]

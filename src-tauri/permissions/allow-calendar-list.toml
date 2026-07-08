@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-list"
+description = "Lists events from the local Calendar mirror."
+commands.allow = ["calendar_list"]

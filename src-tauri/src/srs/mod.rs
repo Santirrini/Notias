@@ -242,15 +242,24 @@ mod tests {
     #[test]
     fn save_dedupes_by_note_front() {
         let conn = open_db();
+        // ponytail: SQLite UNIQUE indexes treat NULL as distinct, so two rows with
+        // NULL note_id + same front would NOT collide. The dedup index only applies
+        // once a note_id is attached — that's the realistic insert path through
+        // `save_cards`, which always carries an `input.note_id`.
         conn.execute(
-            "INSERT OR IGNORE INTO srs_cards (id, front, back, due_at, created_at) \
-             VALUES ('a', 'dup-front', 'b1', 'n', 'n')",
+            "INSERT INTO notes (id, path, title, created, updated) \
+             VALUES ('n1', 'n1.md', 'n', 'n', 'n')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO srs_cards (id, note_id, front, back, due_at, created_at) \
+             VALUES ('a', 'n1', 'dup-front', 'b1', 'n', 'n')",
             [],
         )
         .unwrap();
         conn.execute(
-            "INSERT OR IGNORE INTO srs_cards (id, front, back, due_at, created_at) \
-             VALUES ('b', 'dup-front', 'b2', 'n', 'n')",
+            "INSERT OR IGNORE INTO srs_cards (id, note_id, front, back, due_at, created_at) \
+             VALUES ('b', 'n1', 'dup-front', 'b2', 'n', 'n')",
             [],
         )
         .unwrap();

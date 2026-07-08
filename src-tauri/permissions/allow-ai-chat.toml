@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ai-chat"
+description = "Runs a chat completion through the AI router (local or cloud)."
+commands.allow = ["ai_chat"]

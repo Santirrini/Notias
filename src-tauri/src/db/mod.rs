@@ -11,15 +11,14 @@ use crate::error::AppResult;
 
 pub fn open(paths: &paths::AppPaths) -> AppResult<Connection> {
     std::fs::create_dir_all(&paths.data_dir)?;
+    // Register sqlite-vec BEFORE opening the connection: sqlite3_auto_extension only
+    // fires for newly-opened connections. The first `migrations::run` then records
+    // this as a no-op for subsequent connections via its internal `Once`.
+    migrations::ensure_sqlite_vec_registered();
     let conn = Connection::open(&paths.db_file)?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
     migrations::run(&conn)?;
-    // ponytail: best-effort sqlite-vec load. If the runtime is missing (dev box without
-    // sqlite-vec), the embed worker degrades to provider-error at runtime, never panics.
-    let _ = conn.enable_load_extension(true);
-    let _ = conn.load_extension("vec0");
-    let _ = conn.enable_load_extension(false);
     Ok(conn)
 }
 

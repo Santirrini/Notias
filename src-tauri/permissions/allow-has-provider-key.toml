@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-has-provider-key"
+description = "Returns whether an API key exists in the keyring for a provider."
+commands.allow = ["has_provider_key"]

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-update-task"
+description = "Updates a kanban task (status, fields, etc.)."
+commands.allow = ["update_task"]

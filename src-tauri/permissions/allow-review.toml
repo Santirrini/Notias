@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-review"
+description = "Submits a review grade for an SM-2 card."
+commands.allow = ["review"]

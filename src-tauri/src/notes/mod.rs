@@ -8,7 +8,6 @@ pub use model::{Note, NoteSummary, Frontmatter};
 
 use crate::AppState;
 use crate::error::{AppError, AppResult};
-use crate::notes::{index, model::Note, store, sync, wikilinks};
 use tauri::State;
 use ulid::Ulid;
 
@@ -62,13 +61,14 @@ pub fn update_note(id: String, title: Option<String>, body: Option<String>, app:
 
     let app2 = app.clone();
     let note_id = note.id.clone();
+    let note_id_for_job = note_id.clone();
     {
         let mut jobs = state.embed_jobs.lock().map_err(|_| AppError::Config("jobs lock".into()))?;
         if let Some(prev) = jobs.remove(&note_id) { prev.abort(); }
         let handle = tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            if let Err(e) = crate::ai::embed::run(note_id.clone(), app2.clone()).await {
-                tracing::warn!("embed worker failed for {note_id}: {e}");
+            if let Err(e) = crate::ai::embed::run(note_id_for_job.clone(), app2.clone()).await {
+                tracing::warn!("embed worker failed for {note_id_for_job}: {e}");
             }
         });
         jobs.insert(note_id, handle);

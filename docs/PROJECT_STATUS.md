@@ -13,8 +13,9 @@
 | 4 | Estudio autónomo | `phase-4-estudio` | SM-2 SRS + quiz generator + weekly plan + tasks kanban |
 | 5 | Sync opcional | `phase-5-sync` | Manual zip export/import + startup rebuild + folder watcher |
 | 6 | Calendar (post-MVP) | `phase-6-calendar` | Google OAuth PKCE + Calendar API v3 + local mirror |
+| 7 | UI redesign (post-MVP) | `phase-7-ui-redesign` | 3-panel chrome (NavRail/Sections/Pages/NoteCanvas) + CommandPalette + RecoveryBanner + secrets IPC merge |
 
-Total: **68 commits** on `main`.
+Total: **52 commits** on `main`.
 
 ## Architecture
 
@@ -39,17 +40,21 @@ Keys    OS keyring         ← provider_api_keys, google_calendar
 Meta    notias.meta        ← db_hash + schema_version (integrity)
 ```
 
-## Verification Status (this host)
+## Verification Status (this host, 2026-07-06 baseline)
 
-| Check | Result |
-|-------|--------|
-| `pnpm build` (frontend) | **PASS** throughout phases 1–6 |
-| `cargo check` (Rust) | **BLOCKED** — Windows SDK Lib missing (`kernel32.lib`); only MSVC `link.exe` present, no SDK Lib dir |
-| `cargo test --lib` | **BLOCKED** — same linker blocker; 30+ unit tests written, unrunnable here |
-| `cargo run --example selfcheck` | **BLOCKED** — same; `selfcheck.rs` seeds rows + asserts invariants per phase |
-| `pnpm tauri dev` | **NOT WITNESSED** on this host (needs full SDK); README documents it |
+| Check | Result | Notes |
+|-------|--------|-------|
+| `pnpm build` (frontend) | **PASS** | SvelteKit static build |
+| `cargo check` (Rust) | **PASS** | 0 errors, 3 warnings (unused imports/vars) |
+| `cargo test --lib` | **PASS** | 62 passed, 0 failed, 1 ignored (keyring smoke) |
+| `cargo run --example selfcheck` | **PASS** | phases 3–6 invariants verified |
+| `pnpm tauri build` | **PASS** | MSI + NSIS produced |
+| Release `.exe` smoke launch | **PASS** | WebView2 spawns, no crash |
+| `pnpm tauri dev` | **PASS** | window opens, sidebar + Notes/Chat/Calendar/Settings/Tasks/Study render |
 
-To verify locally: install Windows SDK Lib (or run on a host that has it) → `cd src-tauri && cargo test --lib && cargo run --example selfcheck && pnpm tauri build`.
+Toolchain confirmed: MSVC v14.44.35207 + Windows SDK 10.0.28000 (full, including Lib dir).
+
+Phase 7 (UI redesign) verification is independent — see `docs/test-checklist-ui.md`. Re-run `pnpm check && pnpm tauri build` on the phase-7 branch to confirm before merge.
 
 ## Deferred (acknowledged, by phase)
 
@@ -67,7 +72,7 @@ To verify locally: install Windows SDK Lib (or run on a host that has it) → `c
 |------|--------|
 | OAuth client_id compiled into binary (phase 6) | Acceptable for personal/educational use; document a backend-proxy approach before enterprise distribution |
 | Embedding-model drift (phase 2) | Re-embed command + per-row `model` column in `note_embeddings` already in schema; UX lands when user switches models |
-| DB corruption (phase 0) | `notias.meta` sidecar + `db_hash`; recovery screen logic is partial in `lib.rs` (`recovery_required` flag exposed via Tauri command; full rebuild UX in `commands::recovery_required` consumer) |
+| DB corruption (phase 0) | `notias.meta` sidecar + `db_hash`; full rebuild UX shipped in phase 7 (`RecoveryBanner.svelte` reads `recovery_required()` and calls `rebuildIndex()`). |
 | Sync conflicts (phase 5) | Last-write-wins on `.md` mtime via watcher; CRDT explicitly out of scope |
 | Bundle size (phase 0) | SvelteKit lean, no font/icon packs beyond what's used |
 

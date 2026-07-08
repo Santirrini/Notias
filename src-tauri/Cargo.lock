@@ -2480,10 +2480,13 @@ dependencies = [
 name = "notias"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "base64 0.21.7",
  "directories",
  "hex",
  "keyring",
  "notify",
+ "rand 0.8.6",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",

@@ -27,7 +27,7 @@ pub enum Question {
     },
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quiz {
     pub id: String,
     pub note_ids: Vec<String>,

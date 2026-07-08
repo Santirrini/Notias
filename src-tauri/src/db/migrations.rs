@@ -7,7 +7,42 @@ use sha2::{Digest, Sha256};
 // and add the SQL file under migrations/.
 const LATEST_VERSION: i64 = 6;
 
+/// Function pointer for sqlite3_vec_init, used with `sqlite3_auto_extension` to make
+/// sqlite-vec available to every newly opened SQLite connection.
+fn sqlite_vec_init_ptr() -> unsafe extern "C" fn() {
+    unsafe { std::mem::transmute(sqlite_vec::sqlite3_vec_init as *const ()) }
+}
+
+/// Process-wide registration of the sqlite-vec auto-extension. Idempotent.
+/// MUST be called before opening any connection that will use `vec0` (migration 0003
+/// creates a vec0 virtual table). Safe to call from anywhere.
+pub fn ensure_sqlite_vec_registered() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| unsafe {
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute::<
+            unsafe extern "C" fn(),
+            unsafe extern "C" fn(
+                *mut rusqlite::ffi::sqlite3,
+                *mut *const std::os::raw::c_char,
+                *const rusqlite::ffi::sqlite3_api_routines,
+            ) -> std::os::raw::c_int,
+        >(sqlite_vec_init_ptr())));
+    });
+}
+
+/// Test helper: open an in-memory DB with sqlite-vec pre-registered.
+/// In production, `db::open` registers vec0 before opening the connection.
+/// For test fixtures that create connections ad-hoc, this ensures vec0 is available
+/// before any `CREATE VIRTUAL TABLE USING vec0` runs.
+#[cfg(test)]
+pub fn open_test_in_memory() -> rusqlite::Connection {
+    ensure_sqlite_vec_registered();
+    rusqlite::Connection::open_in_memory().expect("open_in_memory")
+}
+
 pub fn run(conn: &Connection) -> AppResult<()> {
+    ensure_sqlite_vec_registered();
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,
@@ -44,7 +79,24 @@ pub fn db_hash(conn: &Connection) -> AppResult<String> {
     // schema-stable edits do not. Upgrade to PRAGMA quick_check + WAL hash if mismatches
     // surface in production telemetry.
     let page_count: i64 = conn.query_row("PRAGMA page_count", [], |r| r.get(0))?;
-    let version: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))?;
+    // Tolerate uninitialized DBs (test fixtures, fresh install before migrations): treat
+    // a missing schema_version as version 0. In production, `db::open` runs migrations
+    // before any caller reaches this function.
+    let version: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+            [],
+            |r| r.get(0),
+        )
+        .or_else(|e| match e {
+            rusqlite::Error::SqliteFailure(err, _)
+                if err.code == rusqlite::ErrorCode::Unknown
+                    && err.extended_code == rusqlite::ffi::SQLITE_ERROR =>
+            {
+                Ok(0)
+            }
+            other => Err(other),
+        })?;
     let mut hasher = Sha256::new();
     hasher.update(page_count.to_be_bytes());
     hasher.update(version.to_be_bytes());
@@ -52,11 +104,21 @@ pub fn db_hash(conn: &Connection) -> AppResult<String> {
 }
 
 pub fn read_schema_version(conn: &Connection) -> AppResult<i64> {
-    let v: i64 = conn.query_row(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_version",
-        [],
-        |r| r.get(0),
-    )?;
+    let v: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+            [],
+            |r| r.get(0),
+        )
+        .or_else(|e| match e {
+            rusqlite::Error::SqliteFailure(err, _)
+                if err.code == rusqlite::ErrorCode::Unknown
+                    && err.extended_code == rusqlite::ffi::SQLITE_ERROR =>
+            {
+                Ok(0)
+            }
+            other => Err(other),
+        })?;
     Ok(v)
 }
 
@@ -67,20 +129,27 @@ mod tests {
 
     #[test]
     fn migrations_apply_once() {
-        let conn = Connection::open_in_memory().unwrap();
+        let conn = open_test_in_memory();
         run(&conn).unwrap();
         let v: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0)).unwrap();
         assert_eq!(v, 6);
+        // First run records one row per migration.
+        let count_after_first: i64 = conn
+            .query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count_after_first, 6);
 
-        // Re-running is a no-op.
+        // Re-running is a no-op: no new rows, version unchanged.
         run(&conn).unwrap();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(count, 1);
+        assert_eq!(count, 6);
+        let v2: i64 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0)).unwrap();
+        assert_eq!(v2, 6);
     }
 
     #[test]
     fn migration_0004_seed_rows() {
-        let conn = Connection::open_in_memory().unwrap();
+        let conn = open_test_in_memory();
         run(&conn).unwrap();
         let mut stmt = conn.prepare("SELECT name, chat_priority, transcribe_provider FROM provider_settings ORDER BY name").unwrap();
         let rows: Vec<(String, i64, String)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap()
@@ -94,7 +163,7 @@ mod tests {
 
     #[test]
     fn migration_0005_study_tables_present() {
-        let conn = Connection::open_in_memory().unwrap();
+        let conn = open_test_in_memory();
         run(&conn).unwrap();
         let names: Vec<String> = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('tasks','srs_cards','srs_reviews','study_sessions','quiz_attempts') ORDER BY name")
@@ -118,7 +187,7 @@ mod tests {
 
     #[test]
     fn db_hash_changes_with_schema() {
-        let conn = Connection::open_in_memory().unwrap();
+        let conn = open_test_in_memory();
         run(&conn).unwrap();
         let h1 = db_hash(&conn).unwrap();
         conn.execute_batch("CREATE TABLE extra (x INTEGER)").unwrap();

@@ -24,6 +24,7 @@ pub fn verify(meta_path: &Path, conn: &Connection) -> AppResult<IntegrityReport>
     Ok(report)
 }
 
+#[derive(Debug)]
 pub enum IntegrityReport {
     Ok,
     Fresh,

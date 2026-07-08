@@ -47,19 +47,19 @@ pub fn grade(quiz: &Quiz, answers: &[String]) -> QuizResult {
     for (i, q) in quiz.questions.iter().enumerate() {
         let given = answers.get(i).cloned().unwrap_or_default();
         let (correct, expected, rationale) = match q {
-            Question::Mc { choices, answer, rationale } => {
+            Question::Mc { question: _, choices, answer, rationale } => {
                 let exp = *answer;
                 let exp_str = choices.get(exp).cloned().unwrap_or_default();
                 let given_idx = given.trim().parse::<usize>().ok();
                 let ok = Some(exp) == given_idx;
                 (ok, format!("index={exp} ({exp_str})"), rationale.clone())
             }
-            Question::Short { answer, rationale } => {
+            Question::Short { question: _, answer, rationale } => {
                 let norm = answer.trim().to_lowercase();
                 let ok = norm == given.trim().to_lowercase();
                 (ok, answer.clone(), rationale.clone())
             }
-            Question::Cloze { answer, rationale } => {
+            Question::Cloze { question: _, answer, rationale } => {
                 let norm = answer.trim().to_lowercase();
                 let ok = norm == given.trim().to_lowercase();
                 (ok, answer.clone(), rationale.clone())

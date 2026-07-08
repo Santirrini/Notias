@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-pull"
+description = "Pulls events from Google Calendar into the local mirror (last-write-wins)."
+commands.allow = ["calendar_pull"]

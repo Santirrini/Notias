@@ -60,6 +60,7 @@ struct TranscribeResponse {
     text: String,
 }
 
+#[async_trait::async_trait]
 impl Provider for GroqProvider {
     fn name(&self) -> &'static str { "groq" }
 

@@ -22,7 +22,7 @@ pub struct CardSummary {
     pub due_at: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DraftCard {
     pub front: String,
     pub back: String,

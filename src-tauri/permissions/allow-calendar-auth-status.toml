@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-calendar-auth-status"
+description = "Reports Google Calendar OAuth connection state."
+commands.allow = ["calendar_auth_status"]

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-delete-provider-key"
+description = "Removes an API key from the OS keyring."
+commands.allow = ["delete_provider_key"]

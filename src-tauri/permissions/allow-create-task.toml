@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-create-task"
+description = "Creates a kanban task."
+commands.allow = ["create_task"]

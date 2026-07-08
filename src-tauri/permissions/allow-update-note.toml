@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-update-note"
+description = "Updates the body or frontmatter of an existing note."
+commands.allow = ["update_note"]

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-suspend"
+description = "Suspends an SM-2 card."
+commands.allow = ["suspend"]

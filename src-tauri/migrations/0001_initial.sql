@@ -1,10 +1,7 @@
 -- Phase 0 baseline: just enough to prove migrations work.
 -- Real tables arrive in later migrations.
-
-CREATE TABLE schema_version (
-    version INTEGER PRIMARY KEY,
-    applied_at TEXT NOT NULL
-);
+-- ponytail: `schema_version` is bootstrapped in code (`migrations::run`) before this
+-- migration runs, so we only declare the application tables here.
 
 CREATE TABLE audit_log (
     id INTEGER PRIMARY KEY,

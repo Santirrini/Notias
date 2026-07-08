@@ -1,5 +1,6 @@
 <script lang="ts">
   import { study } from '$lib/stores/study.svelte';
+  import { Check, X, Plus, Minus } from '@lucide/svelte';
 
   let { noteIds }: { noteIds: string[] } = $props();
   let noteIdInput = $state('');
@@ -32,12 +33,14 @@
           placeholder="Note ID (ULID)"
           onkeydown={(e) => { if (e.key === 'Enter') addId(); }}
         />
-        <button onclick={addId}>+ Note</button>
+        <button onclick={addId}>
+          <Plus size={14} /> Note
+        </button>
       </div>
       {#if noteIds.length > 0}
         <ul>
           {#each noteIds as id}
-            <li>{id} <button onclick={() => removeId(id)} aria-label="Remove">×</button></li>
+            <li>{id} <button onclick={() => removeId(id)} aria-label="Remove"><X size={14} /></button></li>
           {/each}
         </ul>
       {/if}
@@ -82,7 +85,9 @@
       <h3>Score: {study.result.score} / {study.result.total}</h3>
       {#each study.result.perQuestion as r}
         <div class={r.correct ? 'ok' : 'no'}>
-          <strong>Q{r.index + 1}</strong>: {r.correct ? '✓' : '✗'}
+          <strong>Q{r.index + 1}</strong>:
+          {#if r.correct}<Check size={14} class="text-success" />
+          {:else}<X size={14} class="text-destructive" />{/if}
           expected <em>{r.expected}</em>, you wrote <em>{r.given || '∅'}</em>
           <p>{r.rationale}</p>
         </div>

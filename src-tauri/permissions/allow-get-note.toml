@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-get-note"
+description = "Returns a single note by id, including body and frontmatter."
+commands.allow = ["get_note"]

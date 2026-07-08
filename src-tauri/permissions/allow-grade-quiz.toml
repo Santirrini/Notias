@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-grade-quiz"
+description = "Grades a quiz attempt and persists the score."
+commands.allow = ["grade_quiz"]

@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// EDIT THIS for your own OAuth client. See README "Google Calendar setup".
@@ -43,7 +44,6 @@ pub fn pkce_pair() -> (String, String) {
 /// return the captured authorization code (also returns the verifier so the
 /// caller can pass it to `exchange_code`).
 pub async fn authorize(http: &reqwest::Client) -> AppResult<(String, String, String)> {
-    use std::process::Command;
     let (verifier, challenge) = pkce_pair();
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| AppError::Auth(format!("bind: {e}")))?;

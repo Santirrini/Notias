@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-recovery-required"
+description = "Reports whether the database integrity check failed and a manual rebuild is required."
+commands.allow = ["recovery_required"]

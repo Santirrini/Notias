@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-sync-export-zip"
+description = "Exports the notes directory to a zip archive (manual sync out)."
+commands.allow = ["sync_export_zip"]

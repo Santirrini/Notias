@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-queue"
+description = "Returns the SM-2 review queue (due cards)."
+commands.allow = ["queue"]

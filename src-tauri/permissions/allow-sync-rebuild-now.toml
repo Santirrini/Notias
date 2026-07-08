@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-sync-rebuild-now"
+description = "Forces an immediate index rebuild from disk."
+commands.allow = ["sync_rebuild_now"]

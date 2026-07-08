@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-save-cards"
+description = "Persists generated SM-2 cards to the database."
+commands.allow = ["save_cards"]

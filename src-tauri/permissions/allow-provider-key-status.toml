@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-provider-key-status"
+description = "Returns the keyring presence status for all known AI providers."
+commands.allow = ["provider_key_status"]

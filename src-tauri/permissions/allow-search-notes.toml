@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-search-notes"
+description = "Full-text search over notes (FTS5)."
+commands.allow = ["search_notes"]

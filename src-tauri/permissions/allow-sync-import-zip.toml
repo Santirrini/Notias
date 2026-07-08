@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-sync-import-zip"
+description = "Imports a zip archive into the notes directory (manual sync in)."
+commands.allow = ["sync_import_zip"]

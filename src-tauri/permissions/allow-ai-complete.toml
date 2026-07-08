@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ai-complete"
+description = "Runs a generic completion through the AI router."
+commands.allow = ["ai_complete"]

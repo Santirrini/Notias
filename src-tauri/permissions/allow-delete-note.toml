@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-delete-note"
+description = "Deletes a note (file + index row)."
+commands.allow = ["delete_note"]

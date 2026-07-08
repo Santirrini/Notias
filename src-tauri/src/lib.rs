@@ -1,7 +1,6 @@
 pub mod ai;
 pub mod calendar;
 pub mod commands;
-pub mod commands_secrets;
 pub mod db;
 pub mod error;
 pub mod notes;
@@ -127,10 +126,10 @@ pub fn run() {
             ai::ai_summarize,
             ai::rag_search,
             ai::ai_transcribe,
-            commands_secrets::set_provider_key,
-            commands_secrets::delete_provider_key,
-            commands_secrets::has_provider_key,
-            commands_secrets::provider_key_status,
+            commands::set_provider_key,
+            commands::delete_provider_key,
+            commands::has_provider_key,
+            commands::provider_key_status,
             tasks::list_tasks,
             tasks::create_task,
             tasks::update_task,

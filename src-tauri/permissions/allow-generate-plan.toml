@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-generate-plan"
+description = "Generates a weekly study plan via the AI router."
+commands.allow = ["generate_plan"]

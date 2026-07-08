@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ai-transcribe"
+description = "Transcribes audio (STT) through the AI router."
+commands.allow = ["ai_transcribe"]

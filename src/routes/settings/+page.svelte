@@ -14,6 +14,7 @@
   import PageHeader from "$lib/components/PageHeader.svelte";
   import SectionCard from "$lib/components/SectionCard.svelte";
   import OfflineCallout from "$lib/components/OfflineCallout.svelte";
+  import LanguagePicker from "$lib/i18n/components/LanguagePicker.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -121,6 +122,11 @@
       description={m.offline_settings_description()}
     />
   {/if}
+
+  <SectionCard title={m.settings_language_label()} description={m.settings_language_description()}>
+    {#snippet icon()}<Settings size={14} />{/snippet}
+    <LanguagePicker />
+  </SectionCard>
 
   <SectionCard title={m.settings_providers_title()} description={m.settings_providers_description()}>
     {#snippet icon()}<Cpu size={14} />{/snippet}

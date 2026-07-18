@@ -19,6 +19,7 @@
     ListTodo,
     GraduationCap,
     Settings,
+    X,
     type Icon as IconType,
   } from "@lucide/svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -391,11 +392,17 @@
         autocomplete="off"
         spellcheck="false"
       />
-      <span class="palette-shortcuts">
-        <Kbd>↑</Kbd><Kbd>↓</Kbd>
-        <span class="sep">·</span>
-        <Kbd>↵</Kbd>
-      </span>
+      <!--
+        Explicit close button. bits-ui's Dialog.Content injects its
+        own default close button via position: absolute which used to
+        overlap the ↑↓·↵ shortcut row at the right edge of the input.
+        Rendering our own (with text "ESC" hint) gives us full control
+        over placement and aria-label, and removes the visual collision.
+      -->
+      <Dialog.Close class="palette-close" aria-label={m.palette_close_aria()}>
+        <span class="palette-close-hint">Esc</span>
+        <X size={14} />
+      </Dialog.Close>
     </div>
 
     <div class="results">
@@ -514,16 +521,37 @@
   .input-wrap input::placeholder {
     color: var(--color-muted-foreground);
   }
-  .palette-shortcuts {
+
+  /* Explicit close button rendered as part of the input row.
+     Replaces bits-ui's default absolute-positioned close button which
+     previously overlapped the right edge of the input. */
+  :global(.palette-close) {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 6px);
+    padding: 0.25rem 0.4rem 0.25rem 0.5rem;
     color: var(--color-muted-foreground);
-  }
-  .palette-shortcuts .sep {
+    font: inherit;
     font-size: 0.75rem;
-    margin: 0 2px;
-    opacity: 0.5;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    flex-shrink: 0;
+  }
+  :global(.palette-close:hover) {
+    background: var(--color-muted);
+    color: var(--color-foreground);
+  }
+  :global(.palette-close:focus-visible) {
+    outline: 2px solid var(--color-ring, currentColor);
+    outline-offset: 1px;
+  }
+  .palette-close-hint {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
   }
 
   .results {

@@ -96,6 +96,7 @@
   "palette_toast_index_rebuilt": "Search index rebuilt",
   "palette_no_matches": "No commands or pages match {query}",
   "palette_section_pages": "Pages",
+  "palette_close_aria": "Close command palette",
 
   "tasks_col_todo": "To do",
   "tasks_col_doing": "Doing",

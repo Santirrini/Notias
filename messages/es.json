@@ -96,6 +96,7 @@
   "palette_toast_index_rebuilt": "Índice de búsqueda reconstruido",
   "palette_no_matches": "Ningún comando o página coincide con {query}",
   "palette_section_pages": "Páginas",
+  "palette_close_aria": "Cerrar paleta de comandos",
 
   "tasks_col_todo": "Por hacer",
   "tasks_col_doing": "En curso",

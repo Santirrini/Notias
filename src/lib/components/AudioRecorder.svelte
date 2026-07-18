@@ -3,7 +3,6 @@
   import { tempDir } from "@tauri-apps/api/path";
   import {
     Mic,
-    Square,
     Loader2,
     AlertTriangle,
     Check,
@@ -12,6 +11,7 @@
   } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { safeAiTranscribe, backend } from "$lib/stores/backend.svelte";
+  import { m } from "$lib/i18n";
 
   let { onInsert }: { onInsert?: (text: string) => void } = $props();
 
@@ -78,9 +78,10 @@
       phase = { kind: "recording", startedAt: Date.now() };
       startTicker();
     } catch (e) {
-      const msg = (e as Error).message ?? "mic permission denied";
-      backend.recordError(`Microphone: ${msg}`);
-      phase = { kind: "error", message: msg };
+      const rawMsg = (e as Error).message ?? "";
+      const full = m.audio_mic_permission({ message: rawMsg });
+      backend.recordError(full);
+      phase = { kind: "error", message: full };
       cleanup();
     }
   }
@@ -103,7 +104,7 @@
 
     const secs = (Date.now() - (phase.kind === "recording" ? phase.startedAt : Date.now())) / 1000;
     if (secs < 0.5) {
-      phase = { kind: "error", message: "Too short — record at least 0.5s" };
+      phase = { kind: "error", message: m.audio_too_short() };
       cleanup();
       return;
     }
@@ -124,15 +125,13 @@
         }
       }
       if (transcript == null) {
-        phase = {
-          kind: "error",
-          message: "Transcription unavailable (AI or backend offline).",
-        };
+        phase = { kind: "error", message: m.audio_transcription_unavailable() };
       } else {
         phase = { kind: "done", transcript };
       }
     } catch (e) {
-      phase = { kind: "error", message: (e as Error).message };
+      const rawMsg = (e as Error).message;
+      phase = { kind: "error", message: rawMsg || m.audio_recording_failed() };
     } finally {
       cleanup();
     }
@@ -153,26 +152,28 @@
 <div class="rec" aria-live="polite">
   <div class="rec-head">
     <span class="rec-icon"><Mic size={14} /></span>
-    <strong>Voice note</strong>
-    <span class="rec-hint">Press <kbd>Space</kbd> when focused</span>
+    <strong>{m.audio_voice_note_title()}</strong>
+    <span class="rec-hint">
+      {@html m.audio_press_space_hint({ key: "<kbd>Space</kbd>" })}
+    </span>
   </div>
 
   {#if phase.kind === "idle" || phase.kind === "error" || phase.kind === "done"}
     <div class="row">
       <Button size="sm" onclick={start}>
-        <Mic size={14} /> Record
+        <Mic size={14} /> {m.audio_record_button()}
       </Button>
     </div>
   {:else if phase.kind === "requesting"}
     <div class="row">
       <Button size="sm" disabled>
-        <Loader2 size={14} class="spin" /> Requesting mic…
+        <Loader2 size={14} class="spin" /> {m.audio_requesting_mic()}
       </Button>
     </div>
   {:else if phase.kind === "recording"}
     <div class="row recording-row">
       <Button size="sm" variant="destructive" onclick={stop}>
-        <CircleStop size={12} /> Stop
+        <CircleStop size={12} /> {m.audio_stop_button()}
       </Button>
       <span class="time">{elapsedLabel}</span>
       <span class="bars" aria-hidden="true">
@@ -181,12 +182,12 @@
         {/each}
       </span>
       <span class="rec-dot" aria-hidden="true"></span>
-      <span class="rec-state">Recording…</span>
+      <span class="rec-state">{m.audio_recording_state()}</span>
     </div>
   {:else if phase.kind === "uploading"}
     <div class="row">
       <Button size="sm" disabled>
-        <Loader2 size={14} class="spin" /> Transcribing with AI…
+        <Loader2 size={14} class="spin" /> {m.audio_transcribing()}
       </Button>
     </div>
   {/if}
@@ -194,14 +195,14 @@
   {#if phase.kind === "done"}
     <div class="preview">
       <p class="preview-label">
-        <Check size={12} class="ok" /> Transcript
+        <Check size={12} class="ok" /> {m.audio_transcript_label()}
       </p>
       <pre>{phase.transcript}</pre>
       <div class="row">
         <Button size="sm" onclick={insert}>
-          <AudioLines size={13} /> Insert into note
+          <AudioLines size={13} /> {m.audio_insert_into_note()}
         </Button>
-        <Button size="sm" variant="ghost" onclick={reset}>Discard</Button>
+        <Button size="sm" variant="ghost" onclick={reset}>{m.audio_discard()}</Button>
       </div>
     </div>
   {/if}
@@ -210,7 +211,7 @@
     <div class="error" role="alert">
       <AlertTriangle size={12} />
       <span>{phase.message}</span>
-      <Button size="xs" variant="ghost" onclick={reset}>Dismiss</Button>
+      <Button size="xs" variant="ghost" onclick={reset}>{m.audio_dismiss()}</Button>
     </div>
   {/if}
 </div>
@@ -366,7 +367,7 @@
   @keyframes rec-spin {
     to { transform: rotate(360deg); }
   }
-  kbd {
+  :global(.rec kbd) {
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 0.6875rem;
     background: var(--color-background);

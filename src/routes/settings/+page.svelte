@@ -25,6 +25,7 @@
   import { listProviders, enableProvider, testProvider } from "$lib/ipc";
   import { toast } from "svelte-sonner";
   import type { ProviderInfo } from "$lib/types/ai";
+  import { m, localizeError } from "$lib/i18n";
 
   let providers = $state<ProviderInfo[]>([]);
   let ollamaUrl = $state("http://127.0.0.1:11434");
@@ -50,11 +51,15 @@
         : null;
     const r = await enableProvider(name, enabled, config);
     if (!r.ok) {
-      toast.error(r.offline ? "Backend offline" : r.error);
+      toast.error(localizeError({ code: r.code, message: r.error }));
       return;
     }
     await refresh();
-    toast.success(enabled ? `${name} enabled` : `${name} disabled`);
+    toast.success(
+      enabled
+        ? m.settings_provider_toggled_enabled({ name: cap(name) })
+        : m.settings_provider_toggled_disabled({ name: cap(name) }),
+    );
   }
 
   async function test() {
@@ -64,10 +69,15 @@
     testing = false;
     if (r.ok) {
       testResult = { ok: r.value.healthy, detail: r.value.detail ?? undefined };
-      if (r.value.healthy) toast.success("Ollama is reachable");
-      else toast.error("Ollama unreachable", { description: r.value.detail ?? undefined });
+      if (r.value.healthy) toast.success(m.settings_provider_ollama_reachable());
+      else toast.error(m.settings_provider_ollama_unreachable(), {
+        description: r.value.detail ?? undefined,
+      });
     } else {
-      testResult = { ok: false, detail: r.offline ? "Backend offline" : r.error };
+      testResult = {
+        ok: false,
+        detail: r.offline ? m.err_offline() : (r.error ?? m.settings_provider_test_failed()),
+      };
     }
   }
 
@@ -80,15 +90,26 @@
     return KeyRound;
   }
 
+  function providerLabel(name: string): string {
+    if (name === "ollama") return m.settings_provider_label_ollama();
+    if (name === "openai") return m.settings_provider_label_openai();
+    if (name === "groq") return m.settings_provider_label_groq();
+    return name;
+  }
+
+  function cap(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
   function providerDescription(name: string): string {
-    if (name === "ollama") return "Local LLM server. No data leaves your machine.";
-    if (name === "openai") return "OpenAI Cloud — key stored in OS keyring.";
-    if (name === "groq") return "Groq Cloud — Whisper transcription included.";
+    if (name === "ollama") return m.settings_provider_desc_ollama();
+    if (name === "openai") return m.settings_provider_desc_openai();
+    if (name === "groq") return m.settings_provider_desc_groq();
     return "";
   }
 </script>
 
-<PageHeader title="Settings" description="Local-first by default. Ollama runs offline; cloud keys live in the OS keyring.">
+<PageHeader title={m.settings_page_title()} description={m.settings_page_description()}>
   {#snippet icon()}<Settings size={22} />{/snippet}
 </PageHeader>
 
@@ -96,15 +117,15 @@
   {#if !backend.available}
     <OfflineCallout
       variant="warning"
-      title="Backend not reachable"
-      description="Providers, keys and sync controls need Tauri. Run via `pnpm tauri dev`."
+      title={m.offline_settings_title()}
+      description={m.offline_settings_description()}
     />
   {/if}
 
-  <SectionCard title="Chat providers" description="Routes fall back automatically (local → cloud).">
+  <SectionCard title={m.settings_providers_title()} description={m.settings_providers_description()}>
     {#snippet icon()}<Cpu size={14} />{/snippet}
     {#if providers.length === 0}
-      <p class="hint">{backend.available ? "Loading…" : "No backend connection."}</p>
+      <p class="hint">{backend.available ? m.settings_loading() : m.settings_no_backend()}</p>
     {:else}
       <div class="providers">
         {#each providers as p (p.name)}
@@ -113,7 +134,7 @@
               <header>
                 <span class="prov-icon"><Server size={14} /></span>
                 <div class="prov-head-text">
-                  <strong>Ollama</strong>
+                  <strong>{providerLabel(p.name)}</strong>
                   <small>{providerDescription(p.name)}</small>
                 </div>
                 <Badge
@@ -121,25 +142,25 @@
                   class={p.healthy ? "ok" : "offline"}
                 >
                   {#if p.healthy}
-                    <CircleCheck size={10} /> reachable
+                    <CircleCheck size={10} /> {m.settings_provider_status_reachable()}
                   {:else}
-                    <CircleAlert size={10} /> offline
+                    <CircleAlert size={10} /> {m.settings_provider_status_offline()}
                   {/if}
                 </Badge>
               </header>
               {#if p.detail}<p class="detail">{p.detail}</p>{/if}
 
               <div class="field">
-                <Label for="ollama-url">Base URL</Label>
+                <Label for="ollama-url">{m.settings_provider_ollama_url_label()}</Label>
                 <Input id="ollama-url" bind:value={ollamaUrl} />
               </div>
               <div class="field-row">
                 <div class="field">
-                  <Label for="ollama-chat">Chat model</Label>
+                  <Label for="ollama-chat">{m.settings_provider_chat_model_label()}</Label>
                   <Input id="ollama-chat" bind:value={ollamaChat} />
                 </div>
                 <div class="field">
-                  <Label for="ollama-embed">Embed model</Label>
+                  <Label for="ollama-embed">{m.settings_provider_embed_model_label()}</Label>
                   <Input id="ollama-embed" bind:value={ollamaEmbed} />
                 </div>
               </div>
@@ -152,20 +173,20 @@
                     onchange={(e) => toggle(p.name, (e.currentTarget as HTMLInputElement).checked)}
                   />
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                  <span class="toggle-label">enabled</span>
+                  <span class="toggle-label">{m.settings_provider_enabled_label()}</span>
                 </label>
                 <Button variant="outline" size="sm" onclick={test} disabled={testing || !backend.available}>
-                  {#if testing}<RefreshCw size={12} class="animate-spin" /> Testing…
+                  {#if testing}<RefreshCw size={12} class="animate-spin" /> {m.settings_provider_testing()}
                   {:else}
-                    <RefreshCw size={12} /> Test connection
+                    <RefreshCw size={12} /> {m.settings_provider_test_button()}
                   {/if}
                 </Button>
                 {#if testResult}
                   <span class="test" class:ok={testResult.ok}>
                     {#if testResult.ok}
-                      <CircleCheck size={11} /> OK
+                      <CircleCheck size={11} /> {m.settings_provider_test_ok()}
                     {:else}
-                      <CircleAlert size={11} /> {testResult.detail ?? "Failed"}
+                      <CircleAlert size={11} /> {testResult.detail ?? m.settings_provider_test_failed()}
                     {/if}
                   </span>
                 {/if}
@@ -176,7 +197,7 @@
               <header>
                 <span class="prov-icon"><KeyRound size={14} /></span>
                 <div class="prov-head-text">
-                  <strong>{p.name.charAt(0).toUpperCase() + p.name.slice(1)}</strong>
+                  <strong>{cap(p.name)}</strong>
                   <small>{providerDescription(p.name)}</small>
                 </div>
                 <Badge
@@ -184,9 +205,9 @@
                   class={p.healthy ? "ok" : "offline"}
                 >
                   {#if p.healthy}
-                    <CircleCheck size={10} /> ready
+                    <CircleCheck size={10} /> {m.settings_provider_status_ready()}
                   {:else}
-                    <CircleAlert size={10} /> no key
+                    <CircleAlert size={10} /> {m.settings_provider_status_no_key()}
                   {/if}
                 </Badge>
               </header>
@@ -198,7 +219,7 @@
                   onchange={(e) => toggle(p.name, (e.currentTarget as HTMLInputElement).checked)}
                 />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                <span class="toggle-label">enabled</span>
+                <span class="toggle-label">{m.settings_provider_enabled_label()}</span>
               </label>
             </article>
           {/if}
@@ -207,20 +228,17 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title="Transcription" description="Whisper runs via Groq by default.">
+  <SectionCard title={m.settings_transcription_title()} description={m.settings_transcription_description()}>
     {#snippet icon()}<Sparkles size={14} />{/snippet}
-    <p class="hint">
-      Set a Groq API key in the section above to enable transcription. Voice notes are
-      recorded via the editor toolbar and transcribed in place.
-    </p>
+    <p class="hint">{m.settings_transcription_help()}</p>
   </SectionCard>
 
-  <SectionCard title="Sync" description="Manual zip export/import + index rebuild.">
+  <SectionCard title={m.settings_sync_title()} description={m.settings_sync_description()}>
     {#snippet icon()}<Cloud size={14} />{/snippet}
     <SyncSettings />
   </SectionCard>
 
-  <SectionCard title="Google Calendar" description="OAuth round-trip uses PKCE; no client_secret in the binary.">
+  <SectionCard title={m.settings_calendar_title()} description={m.settings_calendar_description()}>
     <CalendarSettings />
   </SectionCard>
 </div>

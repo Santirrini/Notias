@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Info, TriangleAlert, X } from "@lucide/svelte";
+  import { m } from "$lib/i18n";
 
   type Variant = "info" | "warning" | "destructive";
 
@@ -40,7 +41,7 @@
       {#if description}<p>{description}</p>{/if}
     </div>
     {#if dismissable}
-      <button type="button" class="dismiss" onclick={handleDismiss} aria-label="Dismiss">
+      <button type="button" class="dismiss" onclick={handleDismiss} aria-label={m.offline_callout_dismiss_aria()}>
         <X size={14} />
       </button>
     {/if}

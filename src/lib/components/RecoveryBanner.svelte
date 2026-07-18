@@ -2,6 +2,7 @@
   import { AlertCircle, RefreshCw } from "@lucide/svelte";
   import { rebuildIndex } from "$lib/ipc";
   import { toast } from "svelte-sonner";
+  import { m, localizeError } from "$lib/i18n";
 
   let { onrebuild }: { onrebuild: () => void } = $props();
   let busy = $state(false);
@@ -15,9 +16,11 @@
       return;
     }
     if (r.offline) {
-      toast.error("Backend offline — cannot rebuild index.");
+      toast.error(m.recovery_banner_offline_toast());
     } else {
-      toast.error(`Rebuild failed: ${r.error}`);
+      toast.error(m.recovery_banner_failed_toast({
+        message: localizeError({ code: r.code, message: r.error }),
+      }));
     }
   }
 </script>
@@ -25,11 +28,15 @@
 <aside class="banner" role="alert">
   <div class="msg">
     <AlertCircle size={16} />
-    <span><strong>Index out of sync</strong> with disk. Rebuild recommended.</span>
+    <span>
+      {@html m.recovery_banner_message({
+        strong: `<strong>${m.recovery_banner_out_of_sync()}</strong>`,
+      })}
+    </span>
   </div>
   <button onclick={rebuild} disabled={busy}>
     <RefreshCw size={14} class={busy ? "animate-spin" : ""} />
-    {busy ? "Rebuilding…" : "Rebuild"}
+    {busy ? m.recovery_banner_rebuilding() : m.recovery_banner_rebuild()}
   </button>
 </aside>
 
@@ -51,9 +58,6 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--color-destructive);
-  }
-  .msg strong {
     color: var(--color-destructive);
   }
   button {

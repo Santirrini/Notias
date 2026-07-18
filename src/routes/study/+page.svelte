@@ -13,6 +13,7 @@
   import SRSReviewer from "$lib/components/SRSReviewer.svelte";
   import QuizRunner from "$lib/components/QuizRunner.svelte";
   import WeeklyPlan from "$lib/components/WeeklyPlan.svelte";
+  import { m } from "$lib/i18n";
 
   let tab = $state<"today" | "quizzes" | "plan">("today");
   let selectedNoteIds = $state<string[]>([]);
@@ -23,8 +24,8 @@
 </script>
 
 <PageHeader
-  title="Study"
-  description="Spaced repetition, auto-graded quizzes, weekly AI plan."
+  title={m.study_page_title()}
+  description={m.study_page_description()}
 >
   {#snippet icon()}<GraduationCap size={22} />{/snippet}
 </PageHeader>
@@ -33,8 +34,8 @@
   {#if !backend.available}
     <OfflineCallout
       variant="warning"
-      title="Backend not reachable"
-      description="Cards, quizzes and plans need the Tauri backend."
+      title={m.offline_study_title()}
+      description={m.offline_study_description()}
     />
   {/if}
 
@@ -42,15 +43,15 @@
     <TabsList>
       <TabsTrigger value="today">
         <BrainCircuit size={13} />
-        Today
+        {m.study_tab_today()}
       </TabsTrigger>
       <TabsTrigger value="quizzes">
         <ListChecks size={13} />
-        Quizzes
+        {m.study_tab_quizzes()}
       </TabsTrigger>
       <TabsTrigger value="plan">
         <CalendarRange size={13} />
-        Plan
+        {m.study_tab_plan()}
       </TabsTrigger>
     </TabsList>
 

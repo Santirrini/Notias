@@ -124,8 +124,8 @@
   {#if !backend.available}
     <OfflineCallout
       variant="info"
-      title="Backend not reachable"
-      description="Notias is loading inside a plain browser. Run via `pnpm tauri dev` to unlock the full UI."
+      title={m.offline_home_title()}
+      description={m.offline_home_description()}
       dismissable={true}
     />
   {/if}

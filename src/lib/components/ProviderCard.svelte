@@ -6,6 +6,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { setProviderKey, deleteProviderKey, hasProviderKey } from "$lib/ipc";
   import type { ProviderInfo } from "$lib/types/ai";
+  import { m, localizeError } from "$lib/i18n";
 
   let { provider }: { provider: ProviderInfo } = $props();
 
@@ -33,16 +34,16 @@
       keyInput = "";
       return;
     }
-    error = r.offline ? "Backend offline" : r.error;
+    error = localizeError({ code: r.code, message: r.error });
   }
 
   async function forget() {
-    if (!confirm(`Remove API key for ${provider.name}?`)) return;
+    if (!confirm(m.provider_key_remove_confirm({ name: provider.name }))) return;
     const r = await deleteProviderKey(provider.name);
     if (r.ok) {
       hasKey = false;
     } else {
-      error = r.offline ? "Backend offline" : r.error;
+      error = localizeError({ code: r.code, message: r.error });
     }
   }
 </script>
@@ -51,10 +52,10 @@
   <header>
     <strong>{provider.name}</strong>
     <Badge variant={provider.healthy ? "default" : "outline"}>
-      {provider.healthy ? "reachable" : "offline"}
+      {provider.healthy ? m.provider_key_reachable() : m.provider_key_offline()}
     </Badge>
     <Badge variant={hasKey ? "default" : "outline"} class={hasKey ? "key-on" : "key-off"}>
-      {hasKey ? "key set" : "no key"}
+      {hasKey ? m.provider_key_set() : m.provider_key_none()}
     </Badge>
   </header>
 
@@ -65,23 +66,25 @@
   <div class="row">
     <Input
       type={showKey ? "text" : "password"}
-      placeholder={provider.name === "openai" ? "sk-…" : "gsk-…"}
+      placeholder={provider.name === "openai"
+        ? m.provider_key_placeholder_openai()
+        : m.provider_key_placeholder_groq()}
       bind:value={keyInput}
       autocomplete="off"
       class="mono-input"
     />
-    <Button variant="ghost" size="icon" onclick={() => (showKey = !showKey)} aria-label="Toggle visibility">
+    <Button variant="ghost" size="icon" onclick={() => (showKey = !showKey)} aria-label={m.provider_key_toggle_visibility_aria()}>
       {#if showKey}<EyeOff size={14} />{:else}<Eye size={14} />{/if}
     </Button>
   </div>
 
   <div class="row">
     <Button onclick={save} disabled={saving || !keyInput || !backend.available}>
-      {saving ? "Saving…" : "Save key"}
+      {saving ? m.provider_key_saving() : m.provider_key_save()}
     </Button>
     {#if hasKey}
       <Button variant="destructive" size="sm" onclick={forget} disabled={!backend.available}>
-        <Trash2 size={12} /> Forget
+        <Trash2 size={12} /> {m.provider_key_forget()}
       </Button>
     {/if}
   </div>

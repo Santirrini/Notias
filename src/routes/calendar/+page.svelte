@@ -21,6 +21,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { calendarList, calendarPull, calendarCreate } from "$lib/ipc";
   import type { CalendarEvent } from "$lib/types";
+  import { m, localizeError } from "$lib/i18n";
 
   let events = $state<CalendarEvent[]>([]);
   let busy = $state(false);
@@ -156,8 +157,8 @@
   {#if offline}
     <OfflineCallout
       variant="warning"
-      title="Backend not reachable"
-      description="Calendar needs the Tauri backend. Run via `pnpm tauri dev` or check the connection."
+      title={m.offline_calendar_title()}
+      description={m.offline_calendar_description()}
     />
   {/if}
 

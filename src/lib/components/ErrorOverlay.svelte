@@ -13,6 +13,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { AlertTriangle, Copy, Check, X } from "@lucide/svelte";
+  import { m } from "$lib/i18n";
 
   interface ErrorDetail {
     message: string;
@@ -33,7 +34,7 @@
   onMount(() => {
     function onError(ev: Event) {
       const ce = ev as CustomEvent<ErrorDetail>;
-      entry = ce.detail ?? { message: "Unknown error" };
+      entry = ce.detail ?? { message: m.overlay_error_unknown() };
       copied = false;
     }
     window.addEventListener("notias:error", onError);
@@ -42,7 +43,7 @@
 
   async function copyStack() {
     if (!entry) return;
-    const text = [entry.message, entry.stack ?? "(no stack)"].join("\n\n");
+    const text = [entry.message, entry.stack ?? m.overlay_error_no_stack()].join("\n\n");
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
@@ -61,21 +62,21 @@
   <aside class="err-overlay" role="alert" aria-live="assertive">
     <header>
       <span class="icon"><AlertTriangle size={14} /></span>
-      <strong>Client error</strong>
-      <button type="button" class="close" onclick={dismiss} aria-label="Dismiss">
+      <strong>{m.overlay_error_title()}</strong>
+      <button type="button" class="close" onclick={dismiss} aria-label={m.overlay_error_dismiss_aria()}>
         <X size={14} />
       </button>
     </header>
     <p class="msg">{entry?.message}</p>
     {#if entry?.pathname}
-      <p class="ctx">at <code>{entry.pathname}</code></p>
+      <p class="ctx">{m.overlay_error_at_pathname()} <code>{entry.pathname}</code></p>
     {/if}
     {#if entry?.stack}
       <pre class="stack">{entry.stack}</pre>
     {/if}
     <footer>
       <button type="button" class="copy" onclick={copyStack}>
-        {#if copied}<Check size={12} /> Copied{:else}<Copy size={12} /> Copy stack{/if}
+        {#if copied}<Check size={12} /> {m.overlay_error_copied()}{:else}<Copy size={12} /> {m.overlay_error_copy()}{/if}
       </button>
     </footer>
   </aside>

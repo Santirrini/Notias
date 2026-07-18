@@ -4,11 +4,12 @@
   import OfflineCallout from "$lib/components/OfflineCallout.svelte";
   import { backend } from "$lib/stores/backend.svelte";
   import ChatPanel from "$lib/components/ChatPanel.svelte";
+  import { m } from "$lib/i18n";
 </script>
 
 <PageHeader
-  title="Chat"
-  description="RAG-aware chat over your notes. Pick a provider or let the router decide."
+  title={m.chat_page_title()}
+  description={m.chat_page_description()}
 >
   {#snippet icon()}<MessageSquare size={22} />{/snippet}
 </PageHeader>
@@ -17,8 +18,8 @@
   {#if !backend.available}
     <OfflineCallout
       variant="info"
-      title="Backend not reachable"
-      description="Chat streams from the Tauri backend. Run via `pnpm tauri dev`."
+      title={m.offline_chat_title()}
+      description={m.offline_chat_description()}
     />
   {/if}
   <ChatPanel />

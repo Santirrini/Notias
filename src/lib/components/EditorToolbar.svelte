@@ -9,6 +9,7 @@
     type EditorCommand,
   } from "$lib/editor/commands";
   import type { MilkdownHandle } from "$lib/editor/Milkdown.svelte";
+  import { m } from "$lib/i18n";
 
   let {
     handle,
@@ -92,7 +93,7 @@
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="More blocks"
+                  aria-label={m.edit_toolbar_more_blocks()}
                   {...dmProps}
                   {...props}
                 >
@@ -102,10 +103,10 @@
             </DropdownMenu.Trigger>
           {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content sideOffset={4}>More blocks</Tooltip.Content>
+        <Tooltip.Content sideOffset={4}>{m.edit_toolbar_more_blocks()}</Tooltip.Content>
       </Tooltip.Root>
       <DropdownMenu.Content align="start" sideOffset={6} class="w-56">
-        <DropdownMenu.Label>Blocks</DropdownMenu.Label>
+        <DropdownMenu.Label>{m.edit_toolbar_more_blocks_heading()}</DropdownMenu.Label>
         {#each blockCommands.slice(5) as cmd (cmd.id)}
           <DropdownMenu.Item onclick={() => run(cmd)}>
             <cmd.icon size={14} />
@@ -125,15 +126,15 @@
             size="sm"
             class="ai"
             onclick={suggest}
-            aria-label="AI: continue writing"
+            aria-label={m.edit_toolbar_suggest()}
             {...props}
           >
             <Sparkles size={14} />
-            <span>Suggest</span>
+            <span>{m.edit_toolbar_suggest()}</span>
           </Button>
         {/snippet}
       </Tooltip.Trigger>
-      <Tooltip.Content sideOffset={4}>AI: continue from cursor · <kbd>Ctrl J</kbd></Tooltip.Content>
+      <Tooltip.Content sideOffset={4}>{m.edit_toolbar_suggest_tooltip()} · <kbd>Ctrl J</kbd></Tooltip.Content>
     </Tooltip.Root>
 
     <DropdownMenu.Root>
@@ -145,7 +146,7 @@
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="More AI actions"
+                  aria-label={m.edit_toolbar_more_ai_aria()}
                   {...dmProps}
                   {...props}
                 >
@@ -155,10 +156,10 @@
             </DropdownMenu.Trigger>
           {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content sideOffset={4}>More AI</Tooltip.Content>
+        <Tooltip.Content sideOffset={4}>{m.edit_toolbar_more_ai_tooltip()}</Tooltip.Content>
       </Tooltip.Root>
       <DropdownMenu.Content align="start" sideOffset={6} class="w-64">
-        <DropdownMenu.Label>AI</DropdownMenu.Label>
+        <DropdownMenu.Label>{m.edit_toolbar_more_ai_heading()}</DropdownMenu.Label>
         {#each aiCommands.slice(1) as cmd (cmd.id)}
           <DropdownMenu.Item onclick={() => run(cmd)}>
             <span class="ai-icon"><cmd.icon size={14} /></span>
@@ -180,14 +181,14 @@
               variant="ghost"
               size="icon-sm"
               onclick={onRecordClick}
-              aria-label="Record audio"
+              aria-label={m.edit_toolbar_record_aria()}
               {...props}
             >
               <Mic size={14} />
             </Button>
           {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content sideOffset={4}>Record audio (transcribe via AI)</Tooltip.Content>
+        <Tooltip.Content sideOffset={4}>{m.edit_toolbar_record_tooltip()}</Tooltip.Content>
       </Tooltip.Root>
     {/if}
   </div>

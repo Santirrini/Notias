@@ -11,6 +11,7 @@
     type EditorCommand,
   } from "$lib/editor/commands";
   import type { MilkdownHandle, EditorStateSnapshot } from "$lib/editor/Milkdown.svelte";
+  import { m } from "$lib/i18n";
 
   let {
     handle,
@@ -142,12 +143,12 @@
     style:top="{rect.top}px"
     style:left="{rect.left}px"
     role="listbox"
-    aria-label="Insert block"
+    aria-label={m.edit_slash_menu_aria()}
   >
     <Command api={cmdApi}>
       <CommandList class="list">
         {#if filtered.block.length}
-          <CommandGroup heading="Blocks">
+          <CommandGroup heading={m.edit_toolbar_more_blocks_heading()}>
             {#each filtered.block as cmd (cmd.id)}
               <CommandItem value={cmd.id} onSelect={() => run(cmd)}>
                 <span class="cmd-icon">
@@ -163,7 +164,7 @@
           </CommandGroup>
         {/if}
         {#if filtered.inline.length}
-          <CommandGroup heading="Inline">
+          <CommandGroup heading={m.edit_toolbar_inline_heading()}>
             {#each filtered.inline as cmd (cmd.id)}
               <CommandItem value={cmd.id} onSelect={() => run(cmd)}>
                 <span class="cmd-icon">
@@ -179,7 +180,7 @@
           </CommandGroup>
         {/if}
         {#if filtered.ai.length}
-          <CommandGroup heading="AI">
+          <CommandGroup heading={m.edit_toolbar_more_ai_heading()}>
             {#each filtered.ai as cmd (cmd.id)}
               <CommandItem value={cmd.id} onSelect={() => run(cmd)}>
                 <span class="cmd-icon ai-icon">

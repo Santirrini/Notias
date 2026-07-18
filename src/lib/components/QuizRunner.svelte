@@ -1,6 +1,7 @@
 <script lang="ts">
   import { study } from '$lib/stores/study.svelte';
-  import { Check, X, Plus, Minus } from '@lucide/svelte';
+  import { Check, X, Plus } from '@lucide/svelte';
+  import { m, localizeError } from "$lib/i18n";
 
   let { noteIds }: { noteIds: string[] } = $props();
   let noteIdInput = $state('');
@@ -22,34 +23,34 @@
 </script>
 
 <section>
-  <h2>Quizzes</h2>
+  <h2>{m.study_quizzes_title()}</h2>
 
   {#if !study.quiz}
     <div class="setup">
-      <p>Paste note IDs to draw questions from:</p>
+      <p>{m.study_quizzes_setup_intro()}</p>
       <div class="id-row">
         <input
           bind:value={noteIdInput}
-          placeholder="Note ID (ULID)"
+          placeholder={m.study_quizzes_id_placeholder()}
           onkeydown={(e) => { if (e.key === 'Enter') addId(); }}
         />
         <button onclick={addId}>
-          <Plus size={14} /> Note
+          <Plus size={14} /> {m.study_quizzes_add_button()}
         </button>
       </div>
       {#if noteIds.length > 0}
         <ul>
           {#each noteIds as id}
-            <li>{id} <button onclick={() => removeId(id)} aria-label="Remove"><X size={14} /></button></li>
+            <li>{id} <button onclick={() => removeId(id)} aria-label={m.study_quizzes_remove_aria()}><X size={14} /></button></li>
           {/each}
         </ul>
       {/if}
       <button onclick={start} disabled={!noteIds.length || study.busy}>
-        {study.busy ? 'Generating…' : 'Generate quiz'}
+        {study.busy ? m.study_quizzes_generating() : m.study_quizzes_generate()}
       </button>
     </div>
     {#if study.error}
-      <p class="err">{study.error}</p>
+      <p class="err">{localizeError({ message: study.error })}</p>
     {/if}
   {:else if !study.result}
     <div class="qs">
@@ -70,29 +71,29 @@
             {/each}
           {:else}
             <input
-              placeholder="Your answer"
+              placeholder={m.study_quizzes_your_answer()}
               oninput={(e) => study.setAnswer(i, (e.target as HTMLInputElement).value)}
             />
           {/if}
         </div>
       {/each}
       <button onclick={() => study.submit()} disabled={study.busy}>
-        {study.busy ? 'Grading…' : 'Submit'}
+        {study.busy ? m.study_quizzes_grading() : m.study_quizzes_submit()}
       </button>
     </div>
   {:else}
     <div class="result">
-      <h3>Score: {study.result.score} / {study.result.total}</h3>
+      <h3>{m.study_quizzes_score({ score: study.result.score, total: study.result.total })}</h3>
       {#each study.result.perQuestion as r}
         <div class={r.correct ? 'ok' : 'no'}>
-          <strong>Q{r.index + 1}</strong>:
+          <strong>{m.study_quizzes_question({ index: r.index + 1 })}</strong>:
           {#if r.correct}<Check size={14} class="text-success" />
           {:else}<X size={14} class="text-destructive" />{/if}
-          expected <em>{r.expected}</em>, you wrote <em>{r.given || '∅'}</em>
+          {m.study_quizzes_expected()} <em>{r.expected}</em>, {m.study_quizzes_you_wrote()} <em>{r.given || m.study_quizzes_empty_answer()}</em>
           <p>{r.rationale}</p>
         </div>
       {/each}
-      <button onclick={() => study.reset()}>New quiz</button>
+      <button onclick={() => study.reset()}>{m.study_quizzes_new()}</button>
     </div>
   {/if}
 </section>

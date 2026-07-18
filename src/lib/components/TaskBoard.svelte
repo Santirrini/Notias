@@ -22,13 +22,21 @@
   import { tasks } from "$lib/stores/tasks.svelte";
   import type { TaskStatus } from "$lib/types";
   import type { Component } from "svelte";
+  import { m, formatDate } from "$lib/i18n";
 
-  const COLS: { key: TaskStatus; label: string; tone: string; icon: Component }[] = [
-    { key: "todo", label: "To do", tone: "muted", icon: CircleDashed },
-    { key: "doing", label: "Doing", tone: "accent", icon: CircleDot },
-    { key: "done", label: "Done", tone: "success", icon: CheckCircle2 },
-    { key: "cancelled", label: "Cancelled", tone: "muted", icon: XCircle },
+  type PriorityKey = "tasks_priority_high" | "tasks_priority_med" | "tasks_priority_low";
+  type ColumnKey = "tasks_col_todo" | "tasks_col_doing" | "tasks_col_done" | "tasks_col_cancelled";
+
+  const COLS: { key: TaskStatus; labelKey: ColumnKey; tone: string; icon: Component }[] = [
+    { key: "todo", labelKey: "tasks_col_todo", tone: "muted", icon: CircleDashed },
+    { key: "doing", labelKey: "tasks_col_doing", tone: "accent", icon: CircleDot },
+    { key: "done", labelKey: "tasks_col_done", tone: "success", icon: CheckCircle2 },
+    { key: "cancelled", labelKey: "tasks_col_cancelled", tone: "muted", icon: XCircle },
   ];
+
+  function colLabel(key: ColumnKey): string {
+    return m[key]();
+  }
 
   let newTitle = $state("");
   let newPriority: 0 | 1 | 2 = $state(0);
@@ -84,10 +92,20 @@
     return tasks.items.filter((t) => t.status === status);
   }
 
-  function priorityLabel(p: number): { label: string; variant: "secondary" | "outline" | "destructive" } {
-    if (p >= 2) return { label: "High", variant: "destructive" };
-    if (p >= 1) return { label: "Med", variant: "outline" };
-    return { label: "Low", variant: "secondary" };
+  function priorityKey(p: number): PriorityKey {
+    if (p >= 2) return "tasks_priority_high";
+    if (p >= 1) return "tasks_priority_med";
+    return "tasks_priority_low";
+  }
+
+  function priorityLabel(p: number): {
+    label: string;
+    variant: "secondary" | "outline" | "destructive";
+  } {
+    const k = priorityKey(p);
+    const variant: "secondary" | "outline" | "destructive" =
+      p >= 2 ? "destructive" : p >= 1 ? "outline" : "secondary";
+    return { label: m[k](), variant };
   }
 
   function priorityDot(p: number): string {
@@ -104,11 +122,11 @@
       const due = new Date(date);
       due.setHours(0, 0, 0, 0);
       const diff = (due.getTime() - today.getTime()) / 86_400_000;
-      if (diff < 0) return `Overdue · ${date.toLocaleDateString()}`;
-      if (diff === 0) return "Due today";
-      if (diff === 1) return "Due tomorrow";
-      if (diff < 7) return `Due in ${Math.round(diff)}d`;
-      return `Due ${date.toLocaleDateString()}`;
+      if (diff < 0) return m.dates_overdue_with_date({ date: formatDate(date) });
+      if (diff === 0) return m.tasks_due_today();
+      if (diff === 1) return m.tasks_due_tomorrow();
+      if (diff < 7) return m.tasks_due_in_days({ days: Math.round(diff) });
+      return m.tasks_due_on({ date: formatDate(date) });
     } catch {
       return d;
     }
@@ -129,7 +147,7 @@
 
 <header class="head">
   <Input
-    placeholder="What needs to happen?"
+    placeholder={m.tasks_input_placeholder()}
     bind:value={newTitle}
     onkeydown={(e) => { if (e.key === "Enter") add(); }}
     class="input"
@@ -138,7 +156,7 @@
     type="date"
     bind:value={newDue}
     class="date-input"
-    aria-label="Due date"
+    aria-label={m.tasks_input_due_aria()}
   />
   <Select
     type="single"
@@ -147,22 +165,22 @@
   >
     <SelectTrigger class="select-trigger">
       <span class="pri-dot" style:background={priorityDot(newPriority)}></span>
-      {newPriority === 2 ? "High" : newPriority === 1 ? "Med" : "Low"}
+      {m[priorityKey(newPriority)]()}
     </SelectTrigger>
     <SelectContent>
       <SelectItem value="0">
-        <span class="pri-dot" style:background={priorityDot(0)}></span> Low
+        <span class="pri-dot" style:background={priorityDot(0)}></span> {m.tasks_priority_low()}
       </SelectItem>
       <SelectItem value="1">
-        <span class="pri-dot" style:background={priorityDot(1)}></span> Med
+        <span class="pri-dot" style:background={priorityDot(1)}></span> {m.tasks_priority_med()}
       </SelectItem>
       <SelectItem value="2">
-        <span class="pri-dot" style:background={priorityDot(2)}></span> High
+        <span class="pri-dot" style:background={priorityDot(2)}></span> {m.tasks_priority_high()}
       </SelectItem>
     </SelectContent>
   </Select>
   <Button onclick={add} disabled={!newTitle.trim()}>
-    <Plus size={14} /> Add
+    <Plus size={14} /> {m.tasks_add_button()}
   </Button>
 </header>
 
@@ -170,8 +188,13 @@
   <div class="empty-board">
     <span class="empty-icon"><AlertTriangle size={20} /></span>
     <div>
-      <p>No tasks yet.</p>
-      <small>Type something above and hit <kbd>Enter</kbd> or click <strong>Add</strong>.</small>
+      <p>{m.tasks_empty_title()}</p>
+      <small>
+        {m.tasks_empty_hint({
+          key_enter: "<kbd>Enter</kbd>",
+          strong: "<strong>Add</strong>",
+        }).replace(/<kbd>|<strong>|<\/kbd>|<\/strong>/g, "")}
+      </small>
     </div>
   </div>
 {:else}
@@ -188,7 +211,7 @@
         <header>
           <span class="label">
             <col.icon size={12} />
-            {col.label}
+            {colLabel(col.labelKey)}
           </span>
           <span class="count">{items(col.key).length}</span>
         </header>
@@ -218,8 +241,8 @@
                 type="button"
                 class="del"
                 onclick={() => tasks.remove(t.id)}
-                aria-label="Delete task"
-                title="Delete"
+                aria-label={m.tasks_delete_task_aria()}
+                title={m.tasks_delete_title()}
               >
                 <X size={12} />
               </button>
@@ -288,14 +311,6 @@
     font-size: 0.8125rem;
     display: block;
     margin-top: 0.125rem;
-  }
-  .empty-board kbd {
-    background: var(--color-background);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 0.75rem;
-    border: 1px solid var(--color-border);
-    font-family: var(--font-mono);
   }
 
   .board {

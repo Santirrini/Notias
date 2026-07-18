@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Cloud, CloudOff, Loader2, Check, FileText } from "@lucide/svelte";
-  import { Button } from "$lib/components/ui/button/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
+  import { m, i18n, formatInteger } from "$lib/i18n";
 
   type SaveState = "idle" | "saving" | "saved" | "dirty" | "error";
 
@@ -19,12 +19,14 @@
   } = $props();
 
   const label = $derived.by(() => {
-    if (state === "saving") return "Saving…";
-    if (state === "dirty") return "Unsaved changes";
-    if (state === "error") return "Save failed";
+    if (state === "saving") return m.editor_status_saving();
+    if (state === "dirty") return m.editor_status_dirty();
+    if (state === "error") return m.editor_status_error();
     if (state === "saved" && lastSavedAt)
-      return `Saved ${lastSavedAt.toLocaleTimeString()}`;
-    return "All changes saved";
+      return m.editor_status_saved_at({
+        time: lastSavedAt.toLocaleTimeString(i18n.locale),
+      });
+    return m.editor_status_saved();
   });
 
   const tone = $derived(
@@ -45,7 +47,7 @@
         type="button"
         class="pill"
         data-tone={tone}
-        aria-label="Note status"
+        aria-label={m.editor_status_pill_aria()}
         {...props}
       >
         {#if state === "saving"}
@@ -64,28 +66,28 @@
   <Popover.Content class="status-popover" align="end" sideOffset={6}>
     <header>
       <span class="pop-icon"><FileText size={14} /></span>
-      <h3>Note details</h3>
+      <h3>{m.editor_details_title()}</h3>
     </header>
     <dl>
       <div>
-        <dt>Status</dt>
+        <dt>{m.editor_details_status()}</dt>
         <dd>{label}</dd>
       </div>
       <div>
-        <dt>Words</dt>
-        <dd>{wordCount.toLocaleString()}</dd>
+        <dt>{m.editor_details_words()}</dt>
+        <dd>{formatInteger(wordCount)}</dd>
       </div>
       <div>
-        <dt>Characters</dt>
-        <dd>{charCount.toLocaleString()}</dd>
+        <dt>{m.editor_details_characters()}</dt>
+        <dd>{formatInteger(charCount)}</dd>
       </div>
       <div>
-        <dt>Reading time</dt>
-        <dd>{Math.max(1, Math.round(wordCount / 200))} min</dd>
+        <dt>{m.editor_details_reading_time()}</dt>
+        <dd>{m.editor_details_minutes({ minutes: Math.max(1, Math.round(wordCount / 200)) })}</dd>
       </div>
       <div>
-        <dt>Last saved</dt>
-        <dd>{lastSavedAt ? lastSavedAt.toLocaleString() : "—"}</dd>
+        <dt>{m.editor_details_last_saved()}</dt>
+        <dd>{lastSavedAt ? lastSavedAt.toLocaleString(i18n.locale) : m.common_dash()}</dd>
       </div>
     </dl>
   </Popover.Content>

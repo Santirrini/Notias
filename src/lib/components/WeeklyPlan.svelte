@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { plan } from '$lib/stores/study.svelte';
+  import { m, i18n, localizeError } from "$lib/i18n";
 
   onMount(() => plan.load());
 
@@ -17,7 +18,7 @@
 
   function dayName(iso: string): string {
     const d = new Date(iso + 'T12:00:00Z');
-    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+    return d.toLocaleDateString(i18n.locale, { weekday: 'short', day: 'numeric' });
   }
 
   function blocksFor(day: string) {
@@ -48,24 +49,26 @@
 
 <section>
   <header>
-    <h2>Plan for week of {plan.weekStart}</h2>
-    <label>Cap <input type="number" min="1" max="12" bind:value={cap} /> h/day</label>
+    <h2>{m.study_plan_title({ weekStart: plan.weekStart })}</h2>
+    <label>{m.study_plan_cap({ cap })}
+      <input type="number" min="1" max="12" bind:value={cap} />
+    </label>
     <button onclick={generate} disabled={plan.busy}>
-      {plan.busy ? 'Generating…' : 'Regenerate'}
+      {plan.busy ? m.study_plan_generating() : m.study_plan_regenerate()}
     </button>
     {#if plan.plan}
-      <button onclick={() => plan.persist()}>Save</button>
+      <button onclick={() => plan.persist()}>{m.study_plan_save()}</button>
     {/if}
   </header>
 
-  {#if plan.error}<p class="err">{plan.error}</p>{/if}
+  {#if plan.error}<p class="err">{localizeError({ message: plan.error })}</p>{/if}
 
   {#if plan.plan}
     <div class="grid">
       {#each weekDays(plan.weekStart) as day}
         <article>
           <h4>{dayName(day)}</h4>
-          <small>{totalMinutes(day)} min</small>
+          <small>{m.study_plan_minutes({ minutes: totalMinutes(day) })}</small>
           {#each blocksFor(day) as _b, _j}
             {#if blockIndex[day]}
               {@const i = blockIndex[day][_j]}
@@ -77,7 +80,7 @@
                 <select
                   value={day}
                   onchange={(e) => moveBlock(i, (e.target as HTMLSelectElement).value)}
-                  aria-label="Move to another day"
+                  aria-label={m.study_plan_move_aria()}
                 >
                   {#each weekDays(plan.weekStart) as d}<option value={d}>{dayName(d)}</option>{/each}
                 </select>
@@ -88,7 +91,7 @@
       {/each}
     </div>
   {:else}
-    <p class="empty">No plan yet. Click Regenerate to draft one.</p>
+    <p class="empty">{m.study_plan_empty()}</p>
   {/if}
 </section>
 

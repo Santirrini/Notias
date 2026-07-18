@@ -25,6 +25,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { ping } from "$lib/ipc";
   import { goto } from "$app/navigation";
+  import { m, localizeError } from "$lib/i18n";
 
   let result = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -33,7 +34,6 @@
   async function check() {
     checking = true;
     error = null;
-    // safeInvoke updates `backend` automatically on success/failure.
     const r = await ping();
     checking = false;
     if (r.ok) {
@@ -41,9 +41,9 @@
       return;
     }
     if (r.offline) {
-      error = "Backend offline";
+      error = m.err_offline();
     } else {
-      error = r.error;
+      error = localizeError({ code: r.code, message: r.error });
     }
   }
 
@@ -51,75 +51,72 @@
     if (backend.available) check();
   });
 
-  const shortcuts = [
+  const shortcuts = $derived([
     {
       href: "/notes",
       kbd: ["Ctrl", "N"],
       icon: NotebookText,
-      title: "New page",
-      hint: "Auto-saves to /notes on disk",
+      title: m.home_shortcut_new_title(),
+      hint: m.home_shortcut_new_hint(),
     },
     {
       href: "/chat",
       kbd: ["Ctrl", "K"],
       icon: MessageSquare,
-      title: "Command palette",
-      hint: "Search, jump, run actions",
+      title: m.home_shortcut_palette_title(),
+      hint: m.home_shortcut_palette_hint(),
     },
     {
       href: "/study",
       kbd: ["Ctrl", "Shift", "L"],
       icon: GraduationCap,
-      title: "Toggle theme",
-      hint: "Light / dark mode",
+      title: m.home_shortcut_theme_title(),
+      hint: m.home_shortcut_theme_hint(),
     },
     {
       href: "/settings",
       kbd: ["Ctrl", ","],
       icon: SettingsIcon,
-      title: "Settings",
-      hint: "Providers, sync, calendar",
+      title: m.home_shortcut_settings_title(),
+      hint: m.home_shortcut_settings_hint(),
     },
-  ];
+  ]);
 
-  const features = [
+  const features = $derived([
     {
       icon: BookOpen,
-      title: "Local-first notes",
-      body: "Markdown stored on your disk. RAG-ready index lives next to it.",
+      title: m.home_feature_local_title(),
+      body: m.home_feature_local_body(),
     },
     {
       icon: Sparkles,
-      title: "Local + cloud AI",
-      body: "Ollama runs offline; OpenAI/Groq fallback when you want more power.",
+      title: m.home_feature_ai_title(),
+      body: m.home_feature_ai_body(),
     },
     {
       icon: ListTodo,
-      title: "Tasks & study",
-      body: "Kanban board, SM-2 spaced repetition, AI-generated quizzes and weekly plans.",
+      title: m.home_feature_tasks_title(),
+      body: m.home_feature_tasks_body(),
     },
     {
       icon: Calendar,
-      title: "Calendar mirror",
-      body: "OAuth PKCE to Google Calendar with last-write-wins local mirror.",
+      title: m.home_feature_calendar_title(),
+      body: m.home_feature_calendar_body(),
     },
     {
       icon: Cloud,
-      title: "Manual sync",
-      body: "Zip export/import. Bring your own cloud-storage app — your data never leaves.",
+      title: m.home_feature_sync_title(),
+      body: m.home_feature_sync_body(),
     },
     {
       icon: Zap,
-      title: "Slash + AI inline",
-      body: "Type `/` for blocks, AI continues your writing right where the cursor is.",
+      title: m.home_feature_slash_title(),
+      body: m.home_feature_slash_body(),
     },
-  ];
+  ]);
 </script>
 
-<PageHeader
-  title="Welcome to Notias"
-  description="Local-first Markdown notes with integrated AI."
->
+<PageHeader title={m.home_page_intro_title()} description={m.home_page_intro_description()}>
   {#snippet icon()}<Home size={22} />{/snippet}
 </PageHeader>
 
@@ -133,28 +130,28 @@
     />
   {/if}
 
-  <SectionCard title="Backend status" description="Round-trip ping to Tauri core.">
+  <SectionCard title={m.home_card_status_title()} description={m.home_card_status_desc()}>
     {#snippet icon()}<Cloud size={14} />{/snippet}
     <div class="status-row">
       {#if result}
-        <Badge class="ok"><CheckCircle2 size={12} /> Reachable</Badge>
+        <Badge class="ok"><CheckCircle2 size={12} /> {m.home_status_reachable()}</Badge>
         <code class="pong">{result}</code>
       {:else if error}
         <Badge variant="destructive">
-          <AlertCircle size={12} /> Unreachable
+          <AlertCircle size={12} /> {m.home_status_unreachable()}
         </Badge>
         <code class="err">{error}</code>
       {:else}
-        <Badge variant="outline">{@render LoaderDot()} Checking…</Badge>
+        <Badge variant="outline">{@render LoaderDot()} {m.home_checking()}</Badge>
       {/if}
       <Button variant="outline" size="sm" onclick={check} disabled={checking}>
         <RefreshCw size={12} class={checking ? "animate-spin" : ""} />
-        {checking ? "Pinging…" : "Check again"}
+        {checking ? m.home_pinging() : m.home_check_again()}
       </Button>
     </div>
   </SectionCard>
 
-  <SectionCard title="Quick start" description="Open one of the workspaces.">
+  <SectionCard title={m.home_card_quick_title()} description={m.home_card_quick_desc()}>
     {#snippet icon()}<Zap size={14} />{/snippet}
     <div class="shortcuts">
       {#each shortcuts as s}
@@ -175,7 +172,7 @@
     </div>
   </SectionCard>
 
-  <SectionCard title="What's inside" description="A quick tour of the features.">
+  <SectionCard title={m.home_card_features_title()} description={m.home_card_features_desc()}>
     <div class="features">
       {#each features as f}
         <article class="feature">

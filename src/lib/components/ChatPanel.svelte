@@ -24,6 +24,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { ChatStore } from "$lib/stores/chat.svelte";
   import type { ChatProviderKind } from "$lib/types/ai";
+  import { m, localizeError } from "$lib/i18n";
 
   const store = new ChatStore();
   let input = $state("");
@@ -65,11 +66,16 @@
   <header class="head">
     <div class="head-left">
       <Bot size={16} />
-      <h2>Chat with your notes</h2>
+      <h2>{m.chat_title()}</h2>
     </div>
     <Badge variant="outline" class="status">
       <Sparkles size={10} />
-      RAG · {store.preferredProvider === "auto" ? "Auto" : store.preferredProvider}
+      {m.chat_rag_status({
+        provider:
+          store.preferredProvider === "auto"
+            ? m.chat_provider_auto()
+            : store.preferredProvider,
+      })}
     </Badge>
   </header>
 
@@ -79,28 +85,25 @@
         <div class="empty-icon">
           <Sparkles size={26} />
         </div>
-        <p>Ask anything about your notes.</p>
+        <p>{m.chat_empty_title()}</p>
         <p class="hint">
-          The router tries local (Ollama) first, then falls back to the cloud.
-          Configure providers in
-          <button type="button" class="link" onclick={() => goto("/settings")}>
-            Settings
-            <ArrowRight size={11} />
-          </button>.
+          {m.chat_empty_hint({
+            link: `<button type="button" class="link" onclick={() => goto("/settings")">${m.chat_empty_settings_link()}<ArrowRight size={11} /></button>`,
+          }).replace(/<button|class="link"|onclick|<\/button>|<ArrowRight|size=\{11\}|\/>/g, "")}
         </p>
       </div>
     {/if}
 
-    {#each store.messages as m, i (i)}
-      <div class="msg {m.role}">
+    {#each store.messages as msg, i (i)}
+      <div class="msg {msg.role}">
         <span class="avatar">
-          {#if m.role === "user"}<User size={14} />{:else}<Bot size={14} />{/if}
+          {#if msg.role === "user"}<User size={14} />{:else}<Bot size={14} />{/if}
         </span>
         <div class="bubble">
-          <p>{m.content}</p>
-          {#if m.citations && m.citations.length}
+          <p>{msg.content}</p>
+          {#if msg.citations && msg.citations.length}
             <ul class="citations">
-              {#each m.citations as c}
+              {#each msg.citations as c}
                 <li>
                   <Badge variant="outline">
                     <FileText size={9} />
@@ -123,7 +126,7 @@
       </div>
     {/if}
     {#if store.error}
-      <p class="err-msg"><AlertCircle size={12} /> {store.error}</p>
+      <p class="err-msg"><AlertCircle size={12} /> {localizeError({ message: store.error })}</p>
     {/if}
   </div>
 
@@ -133,13 +136,13 @@
       value={store.preferredProvider}
       onValueChange={(v) => (store.preferredProvider = (v as ChatProviderKind | "auto") ?? "auto")}
     >
-      <SelectTrigger class="provider-trigger" aria-label="Provider">
+      <SelectTrigger class="provider-trigger" aria-label={m.chat_provider_select_aria()}>
         {store.preferredProvider === "auto"
-          ? "Auto"
+          ? m.chat_provider_auto()
           : store.preferredProvider.charAt(0).toUpperCase() + store.preferredProvider.slice(1)}
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="auto">Auto (local → cloud)</SelectItem>
+        <SelectItem value="auto">{m.chat_provider_auto_full()}</SelectItem>
         <SelectItem value="ollama">Ollama</SelectItem>
         <SelectItem value="openai">OpenAI</SelectItem>
         <SelectItem value="groq">Groq</SelectItem>
@@ -148,7 +151,7 @@
     <Input
       bind:ref={inputEl}
       bind:value={input}
-      placeholder={backend.available ? "Ask anything about your notes…" : "Backend offline"}
+      placeholder={backend.available ? m.chat_input_placeholder_online() : m.chat_input_placeholder_offline()}
       onkeydown={onKeyDown}
       disabled={!backend.available}
       class="chat-input"
@@ -160,7 +163,7 @@
             <Button
               type="submit"
               disabled={!input.trim() || !backend.available || store.streaming}
-              aria-label={store.streaming ? "Sending…" : "Send"}
+              aria-label={store.streaming ? m.chat_streaming_aria() : m.chat_send_aria()}
               {...props}
             >
               {#if store.streaming}
@@ -172,7 +175,7 @@
           {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content sideOffset={6}>
-          {store.streaming ? "Streaming…" : "Send (Enter)"}
+          {store.streaming ? m.chat_streaming_tooltip() : m.chat_send_tooltip()}
         </Tooltip.Content>
       </Tooltip.Root>
     </Tooltip.Provider>

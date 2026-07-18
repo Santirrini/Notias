@@ -377,7 +377,13 @@
 <svelte:window onkeydown={onKeyDown} />
 
 <Dialog.Root open={open} onOpenChange={(v) => (open = v)}>
-  <Dialog.Content class="palette">
+  <!--
+    showCloseButton={false} disables bits-ui's default absolute-
+    positioned close button. We render our own <Dialog.Close> below
+    inside the input row to avoid visual collision with the input
+    field and to keep the aria-label localized.
+  -->
+  <Dialog.Content class="palette" showCloseButton={false}>
     <Dialog.Title class="sr-only">{m.palette_aria()}</Dialog.Title>
     <Dialog.Description class="sr-only">{m.palette_description()}</Dialog.Description>
 
@@ -392,13 +398,6 @@
         autocomplete="off"
         spellcheck="false"
       />
-      <!--
-        Explicit close button. bits-ui's Dialog.Content injects its
-        own default close button via position: absolute which used to
-        overlap the ↑↓·↵ shortcut row at the right edge of the input.
-        Rendering our own (with text "ESC" hint) gives us full control
-        over placement and aria-label, and removes the visual collision.
-      -->
       <Dialog.Close class="palette-close" aria-label={m.palette_close_aria()}>
         <span class="palette-close-hint">Esc</span>
         <X size={14} />

@@ -6,11 +6,12 @@
   import { backend } from "$lib/stores/backend.svelte";
   import TaskBoard from "$lib/components/TaskBoard.svelte";
   import { tasks } from "$lib/stores/tasks.svelte";
+  import { m } from "$lib/i18n";
 
   onMount(() => tasks.load());
 </script>
 
-<PageHeader title="Tasks" description="A simple Kanban to track what needs to happen.">
+<PageHeader title={m.tasks_page_title()} description={m.tasks_page_description()}>
   {#snippet icon()}<ListTodo size={22} />{/snippet}
 </PageHeader>
 
@@ -18,8 +19,8 @@
   {#if !backend.available}
     <OfflineCallout
       variant="warning"
-      title="Backend not reachable"
-      description="Tasks need the Tauri backend. Run via `pnpm tauri dev`."
+      title={m.offline_tasks_title()}
+      description={m.offline_tasks_description()}
     />
   {/if}
   <TaskBoard />

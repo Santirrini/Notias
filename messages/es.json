@@ -257,6 +257,11 @@
   "offline_study_title": "Backend no disponible",
   "offline_study_description": "Las tarjetas, cuestionarios y planes necesitan el backend de Tauri.",
 
+  "offline_tasks_title": "Backend no disponible",
+  "offline_tasks_description": "Las tareas necesitan el backend de Tauri. Lánzalo con `pnpm tauri dev`.",
+  "tasks_page_title": "Tareas",
+  "tasks_page_description": "Un Kanban simple para hacer seguimiento de lo que hay que hacer.",
+
   "chat_page_title": "Chat",
   "chat_page_description": "Chat con RAG sobre tus notas. Elige un proveedor o deja que el router decida.",
 

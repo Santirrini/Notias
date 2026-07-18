@@ -10,7 +10,7 @@ pub async fn run(note_id: String, app: tauri::AppHandle) -> AppResult<()> {
     let embed_model = "nomic-embed-text".to_string();
 
     let text: String = {
-        let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         conn.query_row(
             "SELECT body FROM notes WHERE id = ?1 AND deleted_at IS NULL",
             rusqlite::params![&note_id],
@@ -36,7 +36,7 @@ pub async fn run(note_id: String, app: tauri::AppHandle) -> AppResult<()> {
     };
 
     {
-        let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         write_vec(&conn, &note_id, &vectors[0])?;
         conn.execute(
             "UPDATE notes SET embedding_status = 'ready' WHERE id = ?1",
@@ -65,7 +65,7 @@ fn write_vec(conn: &rusqlite::Connection, note_id: &str, v: &[f32]) -> AppResult
 
 fn mark_status(app: &tauri::AppHandle, note_id: &str, status: &str) -> AppResult<()> {
     let state = app.state::<crate::AppState>();
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     conn.execute(
         "UPDATE notes SET embedding_status = ?2 WHERE id = ?1",
         rusqlite::params![note_id, status],

@@ -83,7 +83,7 @@ pub async fn calendar_pull(days: u32, state: State<'_, AppState>) -> AppResult<u
     let time_min = format_iso(now);
     let time_max = format_iso(now + (days as i64) * 86_400);
     let events = google::list_events(&state.http, &token, &time_min, &time_max).await?;
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     merge_events(&conn, &events)?;
     let _ = conn.execute(
         "INSERT INTO calendar_sync_state(scope, last_pulled_at, last_error) VALUES('primary', ?1, NULL)
@@ -106,14 +106,14 @@ pub async fn calendar_create(summary: String, description: String, start_iso: St
         updated_at: ev.updated.clone(),
         source: "google".into(),
     };
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     upsert_local(&conn, &local)?;
     Ok(local)
 }
 
 #[tauri::command]
 pub fn calendar_list(state: State<'_, AppState>) -> AppResult<Vec<CalendarEvent>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     list_local(&conn)
 }
 

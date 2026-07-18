@@ -11,6 +11,11 @@ use crate::error::AppResult;
 
 pub fn open(paths: &paths::AppPaths) -> AppResult<Connection> {
     std::fs::create_dir_all(&paths.data_dir)?;
+    // Diagnostics directories — created eagerly so the file logger and panic hook
+    // have a stable destination even if subsequent steps (sqlite open, migrations)
+    // fail. Best-effort: a failure here would itself be an `AppError::Io`.
+    std::fs::create_dir_all(&paths.logs_dir)?;
+    std::fs::create_dir_all(&paths.reports_dir)?;
     // Register sqlite-vec BEFORE opening the connection: sqlite3_auto_extension only
     // fires for newly-opened connections. The first `migrations::run` then records
     // this as a no-op for subsequent connections via its internal `Once`.

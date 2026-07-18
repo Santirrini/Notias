@@ -119,13 +119,13 @@
   }
 
   async function quickCreate() {
-    try {
-      const n = await notes.create("Untitled");
+    const n = await notes.create("Untitled");
+    if (n) {
       closeResults();
       goto(`/notes/${n.id}`);
-    } catch {
-      toast.error("Could not create page");
+      return;
     }
+    toast.error(notes.lastError ?? "Could not create page");
   }
 
   function matchScore(haystack: string, needle: string): number {

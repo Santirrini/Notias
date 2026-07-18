@@ -14,23 +14,23 @@
     busy = true;
     err = null;
     status = null;
-    try {
-      const bytes = await syncExportZip();
-      const blob = new Blob([new Uint8Array(bytes)], { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `notias-export-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      status = `Exported ${bytes.length.toLocaleString()} bytes`;
-    } catch (e) {
-      err = (e as { message: string }).message;
-    } finally {
-      busy = false;
+    const r = await syncExportZip();
+    busy = false;
+    if (!r.ok) {
+      err = r.offline ? "Backend offline" : r.error;
+      return;
     }
+    const bytes = r.value;
+    const blob = new Blob([new Uint8Array(bytes)], { type: "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `notias-export-${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    status = `Exported ${bytes.length.toLocaleString()} bytes`;
   }
 
   async function importNow(ev: Event) {
@@ -43,10 +43,12 @@
     try {
       const buf = await file.arrayBuffer();
       const bytes = Array.from(new Uint8Array(buf));
-      const n = await syncImportZip(bytes);
-      status = `Imported ${n} file${n === 1 ? "" : "s"} + rebuilt index`;
-    } catch (e) {
-      err = (e as { message: string }).message;
+      const r = await syncImportZip(bytes);
+      if (r.ok) {
+        status = `Imported ${r.value} file${r.value === 1 ? "" : "s"} + rebuilt index`;
+      } else {
+        err = r.offline ? "Backend offline" : r.error;
+      }
     } finally {
       busy = false;
       input.value = "";
@@ -58,13 +60,12 @@
     busy = true;
     err = null;
     status = null;
-    try {
-      const n = await syncRebuildNow();
-      status = `Reindexed ${n} note${n === 1 ? "" : "s"}`;
-    } catch (e) {
-      err = (e as { message: string }).message;
-    } finally {
-      busy = false;
+    const r = await syncRebuildNow();
+    busy = false;
+    if (r.ok) {
+      status = `Reindexed ${r.value} note${r.value === 1 ? "" : "s"}`;
+    } else {
+      err = r.offline ? "Backend offline" : r.error;
     }
   }
 </script>

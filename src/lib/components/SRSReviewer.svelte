@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { srs } from '$lib/stores/srs.svelte';
-  import { generateCards } from '$lib/ipc';
   import { PartyPopper } from '@lucide/svelte';
   import type { DraftCard } from '$lib/types';
 
@@ -14,23 +13,15 @@
   async function gen() {
     if (!noteId) return;
     generating = true;
-    try {
-      drafts = await generateCards(noteId, 5);
-    } catch (e) {
-      srs.error = (e as { message: string }).message;
-    } finally {
-      generating = false;
-    }
+    const result = await srs.generate(noteId, 5);
+    generating = false;
+    if (result) drafts = result;
   }
 
   async function saveDraft(d: DraftCard, idx: number) {
     if (!noteId) return;
-    try {
-      await srs.saveBatch(noteId, [d]);
-      drafts.splice(idx, 1);
-    } catch (e) {
-      srs.error = (e as { message: string }).message;
-    }
+    const saved = await srs.saveBatch(noteId, [d]);
+    if (saved) drafts.splice(idx, 1);
   }
 </script>
 

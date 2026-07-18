@@ -16,10 +16,7 @@ use plan::Plan;
 pub async fn generate_quiz(input: NewQuizInput, state: State<'_, AppState>) -> AppResult<Quiz> {
     let mut body = String::new();
     {
-        let conn = state
-            .db
-            .lock()
-            .map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         for nid in &input.note_ids {
             let b: String = conn
                 .query_row(
@@ -47,10 +44,7 @@ pub async fn grade_quiz(
         .map_err(|e| AppError::Invalid(format!("quiz json: {e}")))?;
     let result = crate::study::quiz::grade(&q, &answers);
     {
-        let conn = state
-            .db
-            .lock()
-            .map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         let _ = crate::study::quiz::save_attempt(&conn, &q, &answers, &result)?;
     }
     Ok(result)
@@ -63,10 +57,7 @@ pub async fn generate_plan(
     state: State<'_, AppState>,
 ) -> AppResult<Plan> {
     let context = {
-        let conn = state
-            .db
-            .lock()
-            .map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         plan::build_context(&conn, &week_start, daily_hours_cap)?
     };
     let provider = state.router.pick_chat().await?;
@@ -88,18 +79,12 @@ pub async fn generate_plan(
 
 #[tauri::command]
 pub fn save_plan(plan: Plan, state: State<'_, AppState>) -> AppResult<String> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     plan::save(&conn, &plan)
 }
 
 #[tauri::command]
 pub fn get_plan(week_start: String, state: State<'_, AppState>) -> AppResult<Option<Plan>> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     plan::get(&conn, &week_start)
 }

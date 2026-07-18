@@ -22,7 +22,7 @@ pub fn review(
         let interval = match reps {
             1 => 1,
             2 => 6,
-            n => ((prev.interval_days as f32) * ease).round().max(1.0) as u32,
+            _n => ((prev.interval_days as f32) * ease).round().max(1.0) as u32,
         };
         (reps, interval)
     };

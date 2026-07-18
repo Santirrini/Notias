@@ -12,6 +12,7 @@
   import Topbar from "$lib/components/Topbar.svelte";
   import RecoveryBanner from "$lib/components/RecoveryBanner.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
+  import ErrorOverlay from "$lib/components/ErrorOverlay.svelte";
 
   import { recoveryRequired } from "$lib/ipc";
   import { sections } from "$lib/stores/sections.svelte";
@@ -41,12 +42,11 @@
   onMount(async () => {
     sections.hydrate();
 
-    // Recovery check is best-effort; guard against IPC absence.
-    try {
-      recovery = await recoveryRequired();
-    } catch {
-      recovery = false;
-    }
+    // Recovery check is best-effort; safeInvoke swallows both offline and
+    // backend errors so the banner only appears when we genuinely need to
+    // rebuild the index (DB hash mismatch reported by the backend).
+    const rr = await recoveryRequired();
+    if (rr.ok) recovery = rr.value;
 
     if (browser) {
       const saved = localStorage.getItem(RAIL_KEY);
@@ -123,6 +123,7 @@
 </div>
 
 <CommandPalette />
+<ErrorOverlay />
 <Toaster richColors position="bottom-right" />
 
 <style>

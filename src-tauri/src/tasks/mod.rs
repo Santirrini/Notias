@@ -13,7 +13,7 @@ const ALLOWED_STATUSES: &[&str] = &["todo", "doing", "done", "cancelled"];
 
 #[tauri::command]
 pub fn list_tasks(state: State<'_, AppState>) -> AppResult<Vec<TaskSummary>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let mut stmt = conn.prepare(
         "SELECT id, title, priority, status, due_at FROM tasks \
          ORDER BY (status='done') ASC, priority DESC, due_at ASC NULLS LAST LIMIT 500",
@@ -37,7 +37,7 @@ pub fn create_task(input: NewTask, state: State<'_, AppState>) -> AppResult<Task
     }
     let id = Ulid::new().to_string();
     let now = time_now();
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     conn.execute(
         "INSERT INTO tasks (id, note_id, title, priority, status, due_at, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, 'todo', ?5, ?6, ?6)",
@@ -60,8 +60,8 @@ pub fn create_task(input: NewTask, state: State<'_, AppState>) -> AppResult<Task
 pub fn update_task(id: String, patch: TaskPatch, state: State<'_, AppState>) -> AppResult<Task> {
     let now = time_now();
     {
-        let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
-        let mut tx = conn.unchecked_transaction()?;
+        let conn = state.db_conn()?;
+        let tx = conn.unchecked_transaction()?;
         if let Some(t) = &patch.title {
             tx.execute(
                 "UPDATE tasks SET title=?1, updated_at=?2 WHERE id=?3",
@@ -96,13 +96,13 @@ pub fn update_task(id: String, patch: TaskPatch, state: State<'_, AppState>) -> 
 
 #[tauri::command]
 pub fn delete_task(id: String, state: State<'_, AppState>) -> AppResult<()> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     conn.execute("DELETE FROM tasks WHERE id=?1", params![id])?;
     Ok(())
 }
 
 fn read_one(id: &str, state: State<'_, AppState>) -> AppResult<Task> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     conn.query_row(
         "SELECT id, note_id, title, priority, status, due_at, created_at, updated_at, done_at \
          FROM tasks WHERE id=?1",

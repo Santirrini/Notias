@@ -1,16 +1,23 @@
 <script lang="ts">
-  import type { Component } from "svelte";
+  import type { Snippet } from "svelte";
 
   let {
     title,
     description,
-    icon: IconComp,
+    icon,
     children,
   }: {
     title?: string;
     description?: string;
-    icon?: Component;
-    children: import("svelte").Snippet;
+    /**
+     * Optional icon. Accepts a Svelte 5 snippet so callers can pass
+     * `{#snippet icon()}<Cloud size={14} />{/snippet}` (the same shape used
+     * by `PageHeader`). Previously this prop was typed as `Component`, which
+     * mismatched snippets and threw `invalid_snippet_arguments` during
+     * hydration, leaving the page blank.
+     */
+    icon?: Snippet;
+    children: Snippet;
   } = $props();
 </script>
 
@@ -18,7 +25,7 @@
   {#if title || description}
     <header>
       <div class="title-row">
-        {#if IconComp}<span class="icon"><IconComp size={16} /></span>{/if}
+        {#if icon}<span class="icon">{@render icon()}</span>{/if}
         {#if title}<h2>{title}</h2>{/if}
       </div>
       {#if description}<p>{description}</p>{/if}

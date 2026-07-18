@@ -81,6 +81,8 @@ function isLocalId(id: string): boolean {
 class NotesStore {
   list = $state<NoteSummary[]>([]);
   current = $state<Note | null>(null);
+  /** Last backend-reported error string (e.g. for toasts). Reset on next success. */
+  lastError = $state<string | null>(null);
 
   /**
    * Monotonic counter so that a fast user navigating from A to B to C
@@ -90,22 +92,38 @@ class NotesStore {
   private loadToken = 0;
 
   async refresh() {
-    try {
-      this.list = await listNotes();
-    } catch {
+    const r = await listNotes();
+    if (r.ok) {
+      this.list = r.value;
+      return;
+    }
+    if (r.offline) {
+      // No backend: serve the local mirror (the same one we used before the
+      // safeInvoke migration, but now gated explicitly on the offline flag).
       this.list = readLocalNotes().map((l) => ({
         id: l.id,
         title: l.title,
         tags: l.tags,
         updated: l.updated,
       }));
+      return;
     }
+    // Real backend error (DB locked, etc.). Keep the previous list intact
+    // and let the caller's toast surface r.error.
+    this.lastError = r.error;
   }
+
   async search(q: string) {
-    try {
-      const ids = await searchNotes(q);
-      return await Promise.all(ids.map(getNote));
-    } catch {
+    const r = await searchNotes(q);
+    if (r.ok) {
+      const notes: Note[] = [];
+      for (const id of r.value) {
+        const n = await getNote(id);
+        if (n.ok) notes.push(n.value);
+      }
+      return notes;
+    }
+    if (r.offline) {
       const needle = q.toLowerCase();
       const locals = readLocalNotes().map(noteFromLocal);
       return locals.filter(
@@ -114,13 +132,17 @@ class NotesStore {
           n.frontmatter.tags.some((t) => t.toLowerCase().includes(needle)),
       );
     }
+    this.lastError = r.error;
+    return [];
   }
+
   async create(title: string) {
-    try {
-      const n = await createNote(title);
+    const r = await createNote(title);
+    if (r.ok) {
       await this.refresh();
-      return n;
-    } catch {
+      return r.value;
+    }
+    if (r.offline) {
       const id = makeLocalId();
       const now = new Date().toISOString();
       const note: LocalNote = { id, title, body: "", tags: [], updated: now };
@@ -130,7 +152,10 @@ class NotesStore {
       await this.refresh();
       return noteFromLocal(note);
     }
+    this.lastError = r.error;
+    return null;
   }
+
   async load(id: string) {
     // Bump the token; only the latest call's result wins.
     const tok = ++this.loadToken;
@@ -139,13 +164,22 @@ class NotesStore {
       if (tok === this.loadToken) this.current = found ? noteFromLocal(found) : null;
       return;
     }
-    try {
-      const result = await getNote(id);
-      if (tok === this.loadToken) this.current = result;
-    } catch {
-      if (tok === this.loadToken) this.current = null;
+    const r = await getNote(id);
+    if (tok !== this.loadToken) return;
+    if (r.ok) {
+      this.current = r.value;
+      return;
     }
+    if (r.offline) {
+      // Try local mirror before giving up.
+      const found = readLocalNotes().find((n) => n.id === id);
+      this.current = found ? noteFromLocal(found) : null;
+      return;
+    }
+    this.lastError = r.error;
+    this.current = null;
   }
+
   async save(id: string, patch: { title?: string; body?: string }) {
     if (isLocalId(id)) {
       const all = readLocalNotes();
@@ -165,19 +199,24 @@ class NotesStore {
       await this.refresh();
       return this.current!;
     }
-    try {
-      this.current = await updateNote(id, patch);
-    } catch {
+    const r = await updateNote(id, patch);
+    if (r.ok) {
+      this.current = r.value;
+    } else if (r.offline) {
       // backend unavailable; keep local state untouched
+    } else {
+      this.lastError = r.error;
     }
     await this.refresh();
   }
+
   async remove(id: string) {
-    try {
-      await deleteNote(id);
-    } catch {
+    const r = await deleteNote(id);
+    if (!r.ok && r.offline) {
       const all = readLocalNotes().filter((n) => n.id !== id);
       writeLocalNotes(all);
+    } else if (!r.ok && !r.offline) {
+      this.lastError = r.error;
     }
     if (this.current?.id === id) this.current = null;
     await this.refresh();

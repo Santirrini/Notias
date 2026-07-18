@@ -33,14 +33,17 @@
   async function check() {
     checking = true;
     error = null;
-    try {
-      result = await ping();
-      backend.setAvailable();
-    } catch (e) {
-      error = (e as { message?: string }).message ?? "Unknown error";
-      backend.setUnavailable(error);
-    } finally {
-      checking = false;
+    // safeInvoke updates `backend` automatically on success/failure.
+    const r = await ping();
+    checking = false;
+    if (r.ok) {
+      result = r.value;
+      return;
+    }
+    if (r.offline) {
+      error = "Backend offline";
+    } else {
+      error = r.error;
     }
   }
 
@@ -142,7 +145,7 @@
         </Badge>
         <code class="err">{error}</code>
       {:else}
-        <Badge variant="outline"><LoaderDot /> Checking…</Badge>
+        <Badge variant="outline">{@render LoaderDot()} Checking…</Badge>
       {/if}
       <Button variant="outline" size="sm" onclick={check} disabled={checking}>
         <RefreshCw size={12} class={checking ? "animate-spin" : ""} />

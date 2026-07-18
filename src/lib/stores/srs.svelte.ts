@@ -11,15 +11,16 @@ class SrsStore {
   async loadQueue(limit = 20) {
     this.busy = true;
     this.error = null;
-    try {
-      this.queue = await srsQueue(limit);
+    const r = await srsQueue(limit);
+    this.busy = false;
+    if (r.ok) {
+      this.queue = r.value;
       this.currentIndex = 0;
       this.showBack = false;
-    } catch (e) {
-      this.error = (e as { message: string }).message;
-    } finally {
-      this.busy = false;
+      return;
     }
+    if (!r.offline) this.error = r.error;
+    // offline: queue stays empty; the UI shows its "Backend offline" callout.
   }
 
   get current() {
@@ -36,10 +37,9 @@ class SrsStore {
 
   async grade(quality: 1 | 3 | 4 | 5) {
     if (!this.current) return;
-    try {
-      await reviewCard(this.current.id, { quality } satisfies ReviewOutcome);
-    } catch (e) {
-      this.error = (e as { message: string }).message;
+    const r = await reviewCard(this.current.id, { quality } satisfies ReviewOutcome);
+    if (!r.ok) {
+      this.error = r.offline ? "Backend offline" : r.error;
       return;
     }
     this.currentIndex += 1;
@@ -54,17 +54,26 @@ class SrsStore {
   }
 
   async toggleSuspend(id: string, suspended: boolean) {
-    await suspendCard(id, suspended);
+    const r = await suspendCard(id, suspended);
+    if (!r.ok && !r.offline) this.error = r.error;
     await this.loadQueue(this.queue.length || 20);
   }
 
-  async generate(noteId: string, count: number): Promise<DraftCard[]> {
-    return await generateCards(noteId, count);
+  /** Generate draft cards from a note. Returns drafts or null on failure. */
+  async generate(noteId: string, count: number): Promise<DraftCard[] | null> {
+    const r = await generateCards(noteId, count);
+    if (r.ok) return r.value;
+    this.error = r.offline ? "Backend offline" : r.error;
+    return null;
   }
 
+  /** Persist a batch of draft cards. Returns saved cards or null on failure. */
   async saveBatch(noteId: string | null, cards: DraftCard[]) {
     const input: SaveCardsInput = { noteId, cards };
-    return await saveCards(input);
+    const r = await saveCards(input);
+    if (r.ok) return r.value;
+    this.error = r.offline ? "Backend offline" : r.error;
+    return null;
   }
 }
 

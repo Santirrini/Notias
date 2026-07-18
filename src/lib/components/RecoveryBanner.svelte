@@ -1,17 +1,23 @@
 <script lang="ts">
   import { AlertCircle, RefreshCw } from "@lucide/svelte";
   import { rebuildIndex } from "$lib/ipc";
+  import { toast } from "svelte-sonner";
 
   let { onrebuild }: { onrebuild: () => void } = $props();
   let busy = $state(false);
 
   async function rebuild() {
     busy = true;
-    try {
-      await rebuildIndex();
+    const r = await rebuildIndex();
+    busy = false;
+    if (r.ok) {
       onrebuild();
-    } finally {
-      busy = false;
+      return;
+    }
+    if (r.offline) {
+      toast.error("Backend offline — cannot rebuild index.");
+    } else {
+      toast.error(`Rebuild failed: ${r.error}`);
     }
   }
 </script>

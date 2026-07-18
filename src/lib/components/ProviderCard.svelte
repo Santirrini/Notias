@@ -17,31 +17,32 @@
 
   $effect(() => {
     if (!backend.available) return;
-    hasProviderKey(provider.name).then((v) => { hasKey = v; }).catch(() => {});
+    hasProviderKey(provider.name).then((r) => {
+      if (r.ok) hasKey = r.value;
+    });
   });
 
   async function save() {
     if (!keyInput) return;
     saving = true;
     error = null;
-    try {
-      await setProviderKey(provider.name, keyInput);
+    const r = await setProviderKey(provider.name, keyInput);
+    saving = false;
+    if (r.ok) {
       hasKey = true;
       keyInput = "";
-    } catch (e) {
-      error = (e as { message: string }).message;
-    } finally {
-      saving = false;
+      return;
     }
+    error = r.offline ? "Backend offline" : r.error;
   }
 
   async function forget() {
     if (!confirm(`Remove API key for ${provider.name}?`)) return;
-    try {
-      await deleteProviderKey(provider.name);
+    const r = await deleteProviderKey(provider.name);
+    if (r.ok) {
       hasKey = false;
-    } catch (e) {
-      error = (e as { message: string }).message;
+    } else {
+      error = r.offline ? "Backend offline" : r.error;
     }
   }
 </script>

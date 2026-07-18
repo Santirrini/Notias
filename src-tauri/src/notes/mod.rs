@@ -13,13 +13,13 @@ use ulid::Ulid;
 
 #[tauri::command]
 pub fn list_notes(tag: Option<String>, state: State<'_, AppState>) -> AppResult<Vec<NoteSummary>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     index::list(&conn, tag.as_deref())
 }
 
 #[tauri::command]
 pub fn get_note(id: String, state: State<'_, AppState>) -> AppResult<Note> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let path: String = conn.query_row("SELECT path FROM notes WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
         .map_err(|_| AppError::NotFound(id.clone()))?;
     store::read(std::path::Path::new(&path))
@@ -37,14 +37,14 @@ pub fn create_note(title: String, state: State<'_, AppState>) -> AppResult<Note>
         frontmatter: model_frontmatter(&id, &title, &now),
     };
     store::write(&note)?;
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     index::upsert(&conn, &note)?;
     Ok(note)
 }
 
 #[tauri::command]
 pub fn update_note(id: String, title: Option<String>, body: Option<String>, app: tauri::AppHandle, state: State<'_, AppState>) -> AppResult<Note> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let path: String = conn.query_row("SELECT path FROM notes WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
         .map_err(|_| AppError::NotFound(id.clone()))?;
     drop(conn);
@@ -55,7 +55,7 @@ pub fn update_note(id: String, title: Option<String>, body: Option<String>, app:
     note.frontmatter.links = wikilinks::extract_links(&note.body);
     note.frontmatter.references = wikilinks::extract_attachments(&note.body);
     store::write(&note)?;
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     index::upsert(&conn, &note)?;
     drop(conn);
 
@@ -79,7 +79,7 @@ pub fn update_note(id: String, title: Option<String>, body: Option<String>, app:
 
 #[tauri::command]
 pub fn delete_note(id: String, state: State<'_, AppState>) -> AppResult<()> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     index::soft_delete(&conn, &id)?;
     // ponytail: we also remove the .md file so rebuild_from_disk doesn't re-insert it.
     // Until Phase 5 introduces sync, the file is the local source of truth and must
@@ -92,7 +92,7 @@ pub fn delete_note(id: String, state: State<'_, AppState>) -> AppResult<()> {
 
 #[tauri::command]
 pub fn search_notes(q: String, state: State<'_, AppState>) -> AppResult<Vec<String>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     index::search(&conn, &q)
 }
 
@@ -102,7 +102,7 @@ pub fn rebuild_index(state: State<'_, AppState>) -> AppResult<usize> {
     // the lock is held for ~10-100ms; UI stays responsive enough for MVP. When Phase 5 sync
     // pushes corpus sizes into the thousands, move this to a background task and release the
     // mutex between upserts (or use a separate index-rebuild connection).
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let n = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
     let _ = crate::db::write_meta(
         &state.paths.meta_file,
@@ -145,7 +145,7 @@ pub fn sync_export_zip(state: State<'_, AppState>) -> AppResult<Vec<u8>> {
 #[tauri::command]
 pub fn sync_import_zip(bytes: Vec<u8>, state: State<'_, AppState>) -> AppResult<usize> {
     let n = sync::import_zip(&state.paths.notes_dir, &bytes)?;
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let _ = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
     let _ = crate::db::write_meta(
         &state.paths.meta_file,
@@ -157,7 +157,7 @@ pub fn sync_import_zip(bytes: Vec<u8>, state: State<'_, AppState>) -> AppResult<
 
 #[tauri::command]
 pub fn sync_rebuild_now(state: State<'_, AppState>) -> AppResult<usize> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let n = index::rebuild_from_disk(&conn, &state.paths.notes_dir)?;
     let _ = crate::db::write_meta(
         &state.paths.meta_file,

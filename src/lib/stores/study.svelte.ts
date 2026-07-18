@@ -12,14 +12,14 @@ class StudyStore {
     this.busy = true;
     this.error = null;
     this.result = null;
-    try {
-      this.quiz = await generateQuiz({ noteIds, count });
+    const r = await generateQuiz({ noteIds, count });
+    this.busy = false;
+    if (r.ok) {
+      this.quiz = r.value;
       this.answers = new Array(this.quiz.questions.length).fill('');
-    } catch (e) {
-      this.error = (e as { message: string }).message;
-    } finally {
-      this.busy = false;
+      return;
     }
+    if (!r.offline) this.error = r.error;
   }
 
   setAnswer(i: number, v: string) {
@@ -29,10 +29,13 @@ class StudyStore {
   async submit() {
     if (!this.quiz) return;
     this.busy = true;
-    try {
-      this.result = await gradeQuiz(this.quiz, this.answers);
-    } finally {
-      this.busy = false;
+    this.error = null;
+    const r = await gradeQuiz(this.quiz, this.answers);
+    this.busy = false;
+    if (r.ok) {
+      this.result = r.value;
+    } else if (!r.offline) {
+      this.error = r.error;
     }
   }
 
@@ -61,23 +64,25 @@ class PlanStore {
   async generate(dailyHoursCap = 4) {
     this.busy = true;
     this.error = null;
-    try {
-      this.plan = await generatePlan(this.weekStart, dailyHoursCap);
-    } catch (e) {
-      this.error = (e as { message: string }).message;
-    } finally {
-      this.busy = false;
+    const r = await generatePlan(this.weekStart, dailyHoursCap);
+    this.busy = false;
+    if (r.ok) {
+      this.plan = r.value;
+      return;
     }
+    if (!r.offline) this.error = r.error;
   }
 
   async load() {
-    const got = await getPlan(this.weekStart);
-    if (got) this.plan = got;
+    const r = await getPlan(this.weekStart);
+    if (r.ok && r.value) this.plan = r.value;
+    // offline / not-found / error: leave plan as is, no UI spam.
   }
 
   async persist() {
     if (!this.plan) return;
-    await savePlan(this.plan);
+    const r = await savePlan(this.plan);
+    if (!r.ok && !r.offline) this.error = r.error;
   }
 
   moveBlock(i: number, toDay: string) {

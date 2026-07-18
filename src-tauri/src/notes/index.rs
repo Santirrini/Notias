@@ -1,4 +1,4 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::notes::model::{Note, NoteSummary};
 use rusqlite::{params, Connection};
 

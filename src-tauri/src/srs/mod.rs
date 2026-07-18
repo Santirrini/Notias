@@ -25,7 +25,7 @@ pub async fn generate_cards(
         return Err(AppError::Invalid("count must be 1..=20".into()));
     }
     let body = {
-        let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+        let conn = state.db_conn()?;
         read_note_body(&conn, &note_id)?
     };
     let provider = state.router.pick_chat().await?;
@@ -45,7 +45,7 @@ pub async fn generate_cards(
 #[tauri::command]
 pub fn save_cards(input: SaveCardsInput, state: State<'_, AppState>) -> AppResult<Vec<Card>> {
     let now = time_now();
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let mut out = vec![];
     for c in input.cards {
         if c.front.trim().is_empty() || c.back.trim().is_empty() {
@@ -79,7 +79,7 @@ pub fn save_cards(input: SaveCardsInput, state: State<'_, AppState>) -> AppResul
 
 #[tauri::command]
 pub fn queue(limit: u32, state: State<'_, AppState>) -> AppResult<Vec<CardSummary>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let now = time_now();
     let mut stmt = conn.prepare(
         "SELECT id, front, back, due_at FROM srs_cards \
@@ -103,7 +103,7 @@ pub fn queue(limit: u32, state: State<'_, AppState>) -> AppResult<Vec<CardSummar
 #[tauri::command]
 pub fn review(card_id: String, outcome: ReviewOutcome, state: State<'_, AppState>) -> AppResult<Card> {
     let now = time_now();
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let prev = conn
         .query_row(
             "SELECT ease, interval_days, repetitions FROM srs_cards WHERE id=?1",
@@ -145,7 +145,7 @@ pub fn review(card_id: String, outcome: ReviewOutcome, state: State<'_, AppState
 
 #[tauri::command]
 pub fn suspend(card_id: String, suspended: bool, state: State<'_, AppState>) -> AppResult<()> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let stamp = if suspended { Some(time_now()) } else { None };
     conn.execute(
         "UPDATE srs_cards SET suspended_at=?1 WHERE id=?2",

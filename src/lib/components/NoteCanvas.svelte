@@ -20,7 +20,6 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { toast } from "svelte-sonner";
   import { goto } from "$app/navigation";
-  import { deleteNote } from "$lib/ipc";
   import Milkdown, {
     type MilkdownHandle,
   } from "$lib/editor/Milkdown.svelte";
@@ -162,35 +161,26 @@
   }
 
   async function duplicate() {
-    try {
-      const n = await notes.create(title || "Untitled copy");
+    const n = await notes.create(title || "Untitled copy");
+    if (n) {
       await notes.save(n.id, { body });
       goto(`/notes/${n.id}`);
       toast.success("Duplicated");
-    } catch {
-      toast.error("Cannot duplicate while offline");
+      return;
+    }
+    if (notes.lastError) {
+      toast.error(notes.lastError);
+    } else {
+      toast.error("Could not duplicate page");
     }
   }
 
   async function remove() {
-    try {
-      await deleteNote(id);
-      notes.refresh();
-    } catch {
-      /* local-only delete */
+    await notes.remove(id);
+    if (notes.lastError) {
+      toast.error(notes.lastError);
+      notes.lastError = null;
     }
-    try {
-      const all = JSON.parse(
-        localStorage.getItem("notias.localNotes.v1") ?? "[]",
-      ) as { id: string }[];
-      localStorage.setItem(
-        "notias.localNotes.v1",
-        JSON.stringify(all.filter((n) => n.id !== id)),
-      );
-    } catch {
-      /* ignore */
-    }
-    notes.refresh();
     goto("/notes");
   }
 </script>

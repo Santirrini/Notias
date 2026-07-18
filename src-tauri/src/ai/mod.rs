@@ -11,6 +11,7 @@ pub use provider::{Provider, ProviderStatus, CompleteRequest, Completion, ChatMe
 pub use openai::OpenAiProvider;
 pub use groq::GroqProvider;
 pub use router::Router;
+use ollama::OllamaProvider;
 
 use std::sync::Arc;
 
@@ -35,7 +36,7 @@ pub struct StreamHandle {
 
 #[tauri::command]
 pub fn list_providers(state: State<'_, AppState>) -> AppResult<Vec<ProviderInfo>> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let rows = crate::db::get_provider_settings(&conn)?;
     drop(conn);
     let router = state.router.clone();
@@ -66,11 +67,11 @@ pub fn enable_provider(
     config_json: Option<String>,
     state: State<'_, AppState>,
 ) -> AppResult<()> {
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let cfg = config_json.unwrap_or_else(|| "{}".into());
     crate::db::set_provider_setting(&conn, &name, enabled, &cfg)?;
     drop(conn);
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let _ = tauri::async_runtime::block_on(state.router.try_reload(&conn));
     Ok(())
 }
@@ -82,8 +83,31 @@ pub fn test_provider(
 ) -> AppResult<ProviderStatus> {
     let router = state.router.clone();
     let snap = tauri::async_runtime::block_on(router.snapshot());
-    let p = snap.get(&name).ok_or_else(|| AppError::Config(format!("unknown provider: {name}")))?;
+    let p = match snap.get(&name) {
+        Some(p) => p,
+        None => match name.as_str() {
+            "ollama" => transient_ollama(&state)? as Arc<dyn Provider>,
+            _ => return Err(AppError::Config(format!("unknown provider: {name}"))),
+        },
+    };
     tauri::async_runtime::block_on(p.health())
+}
+
+/// Probe a transient OllamaProvider from the DB row's `base_url`, regardless of whether
+/// the user has toggled the provider on. Lets the Settings UI test connectivity before
+/// committing to enabling it. Falls back to the canonical localhost default.
+fn transient_ollama(state: &State<'_, AppState>) -> AppResult<Arc<OllamaProvider>> {
+    let conn = state.db_conn()?;
+    let cfg = crate::db::get_provider_settings(&conn)?
+        .into_iter()
+        .find(|(n, _, _)| n == "ollama")
+        .map(|(_, _, c)| c);
+    drop(conn);
+    let url = cfg.as_deref()
+        .and_then(|c| serde_json::from_str::<serde_json::Value>(c).ok())
+        .and_then(|v| v.get("base_url").and_then(|u| u.as_str()).map(str::to_string))
+        .unwrap_or_else(|| "http://127.0.0.1:11434".into());
+    Ok(Arc::new(OllamaProvider::new(url, state.http.clone())))
 }
 
 #[tauri::command]
@@ -159,7 +183,7 @@ pub fn rag_search(query: String, state: State<'_, AppState>) -> AppResult<Vec<Ra
     }).map_err(|e| AppError::Config(format!("embed query: {e}")))?;
     let json = serde_json::to_string(&q_vec[0]).map_err(|e| AppError::Config(format!("vec encode: {e}")))?;
 
-    let conn = state.db.lock().map_err(|_| AppError::Config("db lock".into()))?;
+    let conn = state.db_conn()?;
     let mut stmt = conn.prepare(
         "SELECT n.id, n.title, vec_distance_cosine(v.embedding, vec_f32(?1)) AS dist
          FROM note_vec v JOIN notes n ON n.rowid = v.rowid

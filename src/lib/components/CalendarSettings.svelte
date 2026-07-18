@@ -11,38 +11,37 @@
 
   async function refresh() {
     if (!backend.available) return;
-    try {
-      status = await calendarAuthStatus();
+    const r = await calendarAuthStatus();
+    if (r.ok) {
+      status = r.value;
       err = null;
-    } catch (e) {
-      err = (e as Error).message;
+    } else if (!r.offline) {
+      err = r.error;
     }
   }
 
   async function connect() {
     busy = true;
     err = null;
-    try {
-      await calendarConnect();
+    const r = await calendarConnect();
+    busy = false;
+    if (r.ok) {
       await refresh();
-    } catch (e) {
-      err = (e as Error).message;
-    } finally {
-      busy = false;
+      return;
     }
+    err = r.offline ? "Backend offline" : r.error;
   }
 
   async function disconnect() {
     busy = true;
     err = null;
-    try {
-      await calendarDisconnect();
+    const r = await calendarDisconnect();
+    busy = false;
+    if (r.ok) {
       await refresh();
-    } catch (e) {
-      err = (e as Error).message;
-    } finally {
-      busy = false;
+      return;
     }
+    err = r.offline ? "Backend offline" : r.error;
   }
 
   $effect(() => {

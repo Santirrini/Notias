@@ -7,6 +7,10 @@ pub struct AppPaths {
     pub db_file: PathBuf,
     pub meta_file: PathBuf,
     pub config_file: PathBuf,
+    /// Rolling log files (`notias.YYYY-MM-DD.log`) — one file per day.
+    pub logs_dir: PathBuf,
+    /// Zipped diagnostics reports (`diagnostics-<unix>.zip`).
+    pub reports_dir: PathBuf,
 }
 
 impl AppPaths {
@@ -25,6 +29,8 @@ impl AppPaths {
             db_file: data_dir.join("notias.db"),
             meta_file: data_dir.join("notias.meta"),
             config_file: data_dir.join("config.json"),
+            logs_dir: data_dir.join("logs"),
+            reports_dir: data_dir.join("reports"),
             data_dir,
         })
     }
@@ -49,7 +55,11 @@ mod tests {
         assert!(p.db_file.ends_with("notias.db"));
         assert!(p.meta_file.ends_with("notias.meta"));
         assert!(p.config_file.ends_with("config.json"));
+        assert!(p.logs_dir.ends_with("logs"));
+        assert!(p.reports_dir.ends_with("reports"));
         assert_eq!(p.notes_dir.parent().unwrap(), dir.path());
+        assert_eq!(p.logs_dir.parent().unwrap(), dir.path());
+        assert_eq!(p.reports_dir.parent().unwrap(), dir.path());
     }
 
     #[test]

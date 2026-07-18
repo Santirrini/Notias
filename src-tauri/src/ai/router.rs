@@ -44,13 +44,17 @@ impl Router {
             .build()
             .map_err(|e| AppError::Config(format!("http client: {e}")))?;
 
-        let prior_ollama = self.inner.read().await.ollama.clone();
         let mut next = Inner { ollama: None, openai: None, groq: None };
         for (name, enabled, cfg) in settings {
             if !enabled { continue; }
             let cfg_v: serde_json::Value = serde_json::from_str(&cfg).unwrap_or_default();
             match name.as_str() {
-                "ollama" => { next.ollama = prior_ollama.clone(); }
+                "ollama" => {
+                    let url = cfg_v.get("base_url").and_then(|v| v.as_str())
+                        .unwrap_or("http://127.0.0.1:11434")
+                        .to_string();
+                    next.ollama = Some(Arc::new(OllamaProvider::new(url, client.clone())));
+                }
                 "openai" => if let Some(k) = has_key("openai") {
                     next.openai = Some(Arc::new(OpenAiProvider::from_config(k, &cfg_v, client.clone())));
                 }
@@ -117,7 +121,6 @@ impl InnerSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::Connection;
 
     #[test]
     fn router_new_without_providers_errors_on_pick() {
@@ -149,6 +152,56 @@ mod tests {
         rt.block_on(async {
             r.try_reload(&conn).await.unwrap();
             r.try_reload(&conn).await.unwrap();
+        });
+    }
+
+    #[test]
+    fn reload_builds_ollama_from_cfg() {
+        let conn = crate::db::migrations::open_test_in_memory();
+        crate::db::migrations::run(&conn).unwrap();
+        crate::db::set_provider_setting(
+            &conn, "ollama", true,
+            r#"{"base_url":"http://example.test:11434","chat_model":"x","embed_model":"y"}"#,
+        ).unwrap();
+        let r = Router::new(None);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            r.reload(&conn).await.unwrap();
+            let o = r.local_only().await.expect("ollama should be loaded after enable");
+            assert_eq!(o.base_url, "http://example.test:11434");
+        });
+    }
+
+    #[test]
+    fn reload_drops_ollama_when_disabled() {
+        let conn = crate::db::migrations::open_test_in_memory();
+        crate::db::migrations::run(&conn).unwrap();
+        // seed default has enabled=0
+        let r = Router::new(None);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            r.reload(&conn).await.unwrap();
+            assert!(r.local_only().await.is_none());
+        });
+    }
+
+    #[test]
+    fn reload_picks_up_url_change() {
+        let conn = crate::db::migrations::open_test_in_memory();
+        crate::db::migrations::run(&conn).unwrap();
+        crate::db::set_provider_setting(
+            &conn, "ollama", true, r#"{"base_url":"http://first:11434"}"#,
+        ).unwrap();
+        let r = Router::new(None);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            r.reload(&conn).await.unwrap();
+            assert_eq!(r.local_only().await.unwrap().base_url, "http://first:11434");
+            crate::db::set_provider_setting(
+                &conn, "ollama", true, r#"{"base_url":"http://second:11434"}"#,
+            ).unwrap();
+            r.reload(&conn).await.unwrap();
+            assert_eq!(r.local_only().await.unwrap().base_url, "http://second:11434");
         });
     }
 }

@@ -3,10 +3,9 @@
   import { browser } from "$app/environment";
   import { page } from "$app/state";
   import { toast } from "svelte-sonner";
-  import { listNotes, createNote, deleteNote } from "$lib/ipc";
+  import { notes, makeLocalId } from "$lib/stores/notes.svelte";
   import { sections } from "$lib/stores/sections.svelte";
-  import { makeLocalId } from "$lib/stores/notes.svelte";
-  import type { NoteSummary, Note } from "$lib/types";
+  import type { NoteSummary } from "$lib/types";
   import {
     Plus,
     Search,
@@ -47,26 +46,14 @@
   /** Load notes — try IPC first, fall back to localStorage. */
   async function refresh() {
     loading = true;
-    try {
-      items = await listNotes();
-      backendOk = true;
-      seedSections();
-      persistLocal();
-    } catch (e) {
-      backendOk = false;
-      items = loadLocal();
-      seedSections();
-      if (items.length === 0 && !browser) {
-        // skip toast in SSR
-      } else if (items.length === 0) {
-        toast.info("Running offline", {
-          description:
-            "Backend Tauri no reachable. Demo mode (notes persist in localStorage).",
-        });
-      }
-    } finally {
-      loading = false;
-    }
+    await notes.refresh();
+    // The store already routes offline vs error internally; we mirror the
+    // items locally so sections/search keep working.
+    items = notes.list;
+    backendOk = !notes.lastError;
+    seedSections();
+    persistLocal();
+    loading = false;
   }
 
   function loadLocal(): NoteSummary[] {
@@ -176,41 +163,46 @@
 
   /** Create a note. Tries the IPC; if it fails, uses a local id and persists. */
   async function add() {
-    try {
-      const n: Note = await createNote("Untitled");
+    const created = await notes.create("Untitled");
+    if (created) {
       await refresh();
       await tick();
-      goto(`/notes/${n.id}`);
-    } catch (e) {
-      backendOk = false;
-      const id = makeLocalId();
-      const note: NoteSummary = {
-        id,
-        title: "Untitled",
-        tags: [],
-        updated: new Date().toISOString(),
-      };
-      items = [note, ...items];
-      persistLocal();
-      await tick();
-      goto(`/notes/${id}`);
-      toast.warning("Created locally", {
-        description:
-          "Backend Tauri no reachable; this page lives in localStorage until backend is up.",
-      });
+      goto(`/notes/${created.id}`);
+      return;
     }
+    // Real backend error (not offline) — surface it.
+    if (notes.lastError) {
+      toast.error(notes.lastError);
+      return;
+    }
+    // Offline: store created a local mirror note already; route to it.
+    const id = makeLocalId();
+    const note: NoteSummary = {
+      id,
+      title: "Untitled",
+      tags: [],
+      updated: new Date().toISOString(),
+    };
+    items = [note, ...items];
+    persistLocal();
+    await tick();
+    goto(`/notes/${id}`);
+    toast.warning("Created locally", {
+      description:
+        "Backend Tauri no reachable; this page lives in localStorage until backend is up.",
+    });
   }
 
   async function remove(id: string, e?: MouseEvent) {
     e?.preventDefault();
     e?.stopPropagation();
-    try {
-      await deleteNote(id);
-    } catch {
-      backendOk = false;
-    }
+    await notes.remove(id);
     items = items.filter((n) => n.id !== id);
     persistLocal();
+    if (notes.lastError) {
+      toast.error(notes.lastError);
+      notes.lastError = null;
+    }
     if (page.params.id === id) {
       goto("/notes");
     }

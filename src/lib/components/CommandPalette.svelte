@@ -69,12 +69,9 @@
   }
 
   async function newPage() {
-    try {
-      const n = await notes.create("Untitled");
-      goto(`/notes/${n.id}`);
-    } catch {
-      toast.error("Could not create page");
-    }
+    const n = await notes.create("Untitled");
+    if (n) goto(`/notes/${n.id}`);
+    else toast.error(notes.lastError ?? "Could not create page");
   }
 
   function jump(href: string) {
@@ -137,12 +134,9 @@
       description: "Rescan notes folder for new files",
       group: "Sync",
       run: async () => {
-        try {
-          await rebuildIndex();
-          toast.success("Search index rebuilt");
-        } catch (e) {
-          toast.error((e as Error).message);
-        }
+        const r = await rebuildIndex();
+        if (r.ok) toast.success("Search index rebuilt");
+        else toast.error(r.offline ? "Backend offline" : r.error);
       },
     },
     {
@@ -151,12 +145,10 @@
       icon: Download,
       group: "Sync",
       run: async () => {
-        try {
-          await syncExportZip();
+        const r = await syncExportZip();
+        if (r.ok)
           toast.success("Export started", { description: "Check your downloads folder." });
-        } catch (e) {
-          toast.error((e as Error).message);
-        }
+        else toast.error(r.offline ? "Backend offline" : r.error);
       },
     },
     {
@@ -173,8 +165,9 @@
           if (!f) return;
           try {
             const buf = new Uint8Array(await f.arrayBuffer());
-            const n = await syncImportZip(Array.from(buf));
-            toast.success(`Imported ${n} notes`);
+            const r = await syncImportZip(Array.from(buf));
+            if (r.ok) toast.success(`Imported ${r.value} notes`);
+            else toast.error(r.offline ? "Backend offline" : r.error);
           } catch (e) {
             toast.error((e as Error).message);
           }

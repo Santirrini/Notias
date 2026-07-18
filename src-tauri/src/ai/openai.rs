@@ -44,8 +44,6 @@ struct ChatResponse {
 #[derive(Deserialize)]
 struct ChatChoice {
     message: ChatMessage,
-    #[serde(default)]
-    finish_reason: Option<String>,
 }
 #[derive(Deserialize)]
 struct ChatStreamChunk {

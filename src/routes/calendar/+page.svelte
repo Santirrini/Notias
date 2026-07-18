@@ -35,34 +35,39 @@
   let endTime = $state("10:00");
 
   async function refresh() {
-    if (typeof calendarList !== "function") {
-      offline = true;
-      return;
-    }
-    try {
-      events = await calendarList();
+    const r = await calendarList();
+    if (r.ok) {
+      events = r.value;
       err = null;
       offline = false;
-    } catch (e) {
-      err = (e as Error).message;
-      offline = true;
+      return;
     }
+    if (r.offline) {
+      offline = true;
+      err = null;
+      return;
+    }
+    err = r.error;
+    offline = false;
   }
 
   async function pull() {
     busy = true;
     err = null;
     status = null;
-    try {
-      const n = await calendarPull(7);
-      status = `Pulled ${n} events`;
+    const r = await calendarPull(7);
+    busy = false;
+    if (r.ok) {
+      status = `Pulled ${r.value} events`;
       await refresh();
-    } catch (e) {
-      err = (e as Error).message;
-      offline = true;
-    } finally {
-      busy = false;
+      return;
     }
+    if (r.offline) {
+      offline = true;
+      err = null;
+      return;
+    }
+    err = r.error;
   }
 
   async function create() {
@@ -70,19 +75,22 @@
     busy = true;
     err = null;
     status = null;
-    try {
-      const start = `${date}T${startTime}:00`;
-      const end = `${date}T${endTime}:00`;
-      await calendarCreate(summary, description, start, end);
+    const start = `${date}T${startTime}:00`;
+    const end = `${date}T${endTime}:00`;
+    const r = await calendarCreate(summary, description, start, end);
+    busy = false;
+    if (r.ok) {
       summary = "";
       description = "";
       status = "Event created";
       await refresh();
-    } catch (e) {
-      err = (e as Error).message;
-    } finally {
-      busy = false;
+      return;
     }
+    if (r.offline) {
+      offline = true;
+      return;
+    }
+    err = r.error;
   }
 
   function fmt(iso: string): { date: string; time: string } {

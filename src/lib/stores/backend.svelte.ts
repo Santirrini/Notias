@@ -18,7 +18,7 @@ declare global {
 
 const isTauri =
   typeof window !== "undefined" &&
-  typeof window.__TAURI_INTERNALS__ === "object";
+  typeof (window as Window).__TAURI_INTERNALS__ === "object";
 
 import { invoke } from "@tauri-apps/api/core";
 
@@ -55,14 +55,19 @@ export type InvokeResult<T> =
   | { ok: false; error: string; offline: boolean };
 
 /**
- * Wrap Tauri invoke with offline-awareness. When run in the plain browser,
- * `invoke` is undefined — we catch and return a clean error.
- */
+   * Wrap Tauri invoke with offline-awareness. When run in the plain browser,
+   * `invoke` is undefined — we catch and return a clean error.
+   */
 export async function safeInvoke<T>(
   cmd: string,
   args?: Record<string, unknown>,
 ): Promise<InvokeResult<T>> {
-  if (typeof invoke !== "function") {
+  // Tauri's `invoke` is an ESM import that always resolves to a function,
+  // even when the runtime hasn't injected `__TAURI_INTERNALS__` yet. Guard on
+  // the runtime object itself — that's what `invoke()` reads `.invoke` off of
+  // internally, and missing it is what triggers
+  //   TypeError: Cannot read properties of undefined (reading 'invoke').
+  if (typeof window === "undefined" || !window.__TAURI_INTERNALS__) {
     backend.setUnavailable("Tauri runtime not detected");
     return { ok: false, offline: true, error: "Backend unavailable" };
   }
@@ -71,13 +76,60 @@ export async function safeInvoke<T>(
     if (!backend.available) backend.setAvailable();
     return { ok: true, value };
   } catch (e) {
-    const message =
-      (e as { message?: string })?.message ??
-      (typeof e === "string" ? e : "Unknown IPC error");
-    backend.recordError(message);
-    return { ok: false, offline: false, error: message };
+      const message =
+        (e as { message?: string })?.message ??
+        (typeof e === "string" ? e : "Unknown IPC error");
+      backend.recordError(message);
+      // Surface real IPC failures (not offline-mode) on the dev overlay so
+      // a thrown command doesn't disappear silently. Gated by DEV to avoid
+      // leaking stack traces to end users in production.
+      if (typeof window !== "undefined" && import.meta.env.DEV) {
+        try {
+          window.dispatchEvent(
+            new CustomEvent("notias:error", {
+              detail: {
+                message: `IPC ${cmd}: ${message}`,
+                stack: (e as { stack?: string })?.stack,
+                pathname: window.location.pathname,
+              },
+            }),
+          );
+        } catch {
+          /* never let dispatchEvent escape */
+        }
+      }
+      return { ok: false, offline: false, error: message };
+    }
   }
-}
+
+  /**
+   * Wrap a Tauri's `listen()` (event subscription) with offline-awareness.
+   * Mirrors `safeInvoke` for the event API. Returns `null` when the backend
+   * is not reachable so the caller can no-op without a try/catch boilerplate.
+   *
+   * If the listener registers successfully, returns its `unlisten` callback.
+   */
+export async function safeListen<T>(
+  event: string,
+  handler: (payload: T) => void,
+): Promise<(() => void) | null> {
+  if (typeof window === "undefined" || !window.__TAURI_INTERNALS__) {
+    backend.setUnavailable("Tauri runtime not detected");
+    return null;
+  }
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const unlisten = await listen<T>(event, (e) => handler(e.payload));
+    if (!backend.available) backend.setAvailable();
+    return unlisten;
+  } catch (e) {
+      const message =
+        (e as { message?: string })?.message ??
+        (typeof e === "string" ? e : "Unknown event error");
+      backend.recordError(message);
+      return null;
+    }
+  }
 
 /**
  * AI helpers — thin wrappers over `safeInvoke` that return `null` on failure
@@ -105,5 +157,14 @@ export async function safeAiTranscribe(
   audioPath: string,
 ): Promise<string | null> {
   const r = await safeInvoke<string>("ai_transcribe", { audioPath });
+  return r.ok ? r.value : null;
+}
+
+/**
+ * Collapse an `InvokeResult<T>` to `T | null`. Use when the caller does not
+ * care about *why* the call failed (offline vs error) — same shape as the
+ * `safeAi*` helpers above but generic.
+ */
+export function unwrap<T>(r: InvokeResult<T>): T | null {
   return r.ok ? r.value : null;
 }

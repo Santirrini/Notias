@@ -35,26 +35,23 @@
 
   async function refresh() {
     if (!backend.available) return;
-    try {
-      providers = await listProviders();
-    } catch (e) {
-      console.warn("listProviders failed", e);
-    }
+    const r = await listProviders();
+    if (r.ok) providers = r.value;
   }
 
   async function toggle(name: string, enabled: boolean) {
-    if (name === "ollama") {
-      await enableProvider(
-        name,
-        enabled,
-        JSON.stringify({
-          base_url: ollamaUrl,
-          chat_model: ollamaChat,
-          embed_model: ollamaEmbed,
-        }),
-      );
-    } else {
-      await enableProvider(name, enabled, null);
+    const config =
+      name === "ollama"
+        ? JSON.stringify({
+            base_url: ollamaUrl,
+            chat_model: ollamaChat,
+            embed_model: ollamaEmbed,
+          })
+        : null;
+    const r = await enableProvider(name, enabled, config);
+    if (!r.ok) {
+      toast.error(r.offline ? "Backend offline" : r.error);
+      return;
     }
     await refresh();
     toast.success(enabled ? `${name} enabled` : `${name} disabled`);
@@ -63,15 +60,14 @@
   async function test() {
     testing = true;
     testResult = null;
-    try {
-      const r = await testProvider("ollama");
-      testResult = { ok: r.healthy, detail: r.detail ?? undefined };
-      if (r.healthy) toast.success("Ollama is reachable");
-      else toast.error("Ollama unreachable", { description: r.detail ?? undefined });
-    } catch (e) {
-      testResult = { ok: false, detail: (e as Error).message };
-    } finally {
-      testing = false;
+    const r = await testProvider("ollama");
+    testing = false;
+    if (r.ok) {
+      testResult = { ok: r.value.healthy, detail: r.value.detail ?? undefined };
+      if (r.value.healthy) toast.success("Ollama is reachable");
+      else toast.error("Ollama unreachable", { description: r.value.detail ?? undefined });
+    } else {
+      testResult = { ok: false, detail: r.offline ? "Backend offline" : r.error };
     }
   }
 

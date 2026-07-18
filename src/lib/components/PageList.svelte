@@ -25,6 +25,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import { onMount } from "svelte";
   import { tick } from "svelte";
+  import { m, formatDate } from "$lib/i18n";
 
   const FAKE_KEY = "notias.localNotes.v1";
   const SORT_KEY = "notias.pageList.sort.v1";
@@ -155,10 +156,13 @@
     const now = Date.now();
     const diffMs = now - d.getTime();
     const day = 86_400_000;
-    if (diffMs < day) return "Today";
-    if (diffMs < 2 * day) return "Yesterday";
-    if (diffMs < 7 * day) return `${Math.floor(diffMs / day)}d ago`;
-    return d.toLocaleDateString();
+    if (diffMs < day) return m.dates_today();
+    if (diffMs < 2 * day) return m.dates_yesterday();
+    if (diffMs < 7 * day) {
+      const days = Math.floor(diffMs / day);
+      return m.dates_days_ago_other({ days });
+    }
+    return formatDate(d);
   }
 
   /** Create a note. Tries the IPC; if it fails, uses a local id and persists. */

@@ -27,6 +27,7 @@
   import EditorStatus from "$lib/components/EditorStatus.svelte";
   import SlashMenu from "$lib/components/SlashMenu.svelte";
   import AudioRecorder from "$lib/components/AudioRecorder.svelte";
+  import { formatInteger } from "$lib/i18n";
 
   type SaveState = "idle" | "saving" | "saved" | "dirty" | "error";
 
@@ -244,11 +245,11 @@
 
   <div class="meta">
     <div class="left">
-      <span class="meta-pill">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
-      <span class="meta-pill">{chars.toLocaleString()} chars</span>
-      <span class="meta-pill">{readingTime(words)} read</span>
+      <span class="meta-pill">{formatInteger(words)} {words === 1 ? m.note_canvas_word_one() : m.note_canvas_word_other()}</span>
+      <span class="meta-pill">{formatInteger(chars)} {m.note_canvas_chars()}</span>
+      <span class="meta-pill">{readingTime(words)} {m.note_canvas_read()}</span>
       {#if !backend.available}
-        <span class="meta-pill warn"><CloudOff size={10} /> offline</span>
+        <span class="meta-pill warn"><CloudOff size={10} /> {m.note_canvas_offline()}</span>
       {/if}
     </div>
     <div class="right">
@@ -270,17 +271,17 @@
           type="button"
           class="tag-x"
           onclick={() => removeTag(t)}
-          aria-label={`Remove tag ${t}`}
+          aria-label={m.note_canvas_remove_tag({ tag: t })}
         >
           <XIcon size={9} />
         </button>
       </span>
     {/each}
     {#if tagInputOpen}
-<Input
+      <Input
         bind:ref={tagInputRef}
         class="tag-input"
-        placeholder="add tag…"
+        placeholder={m.note_canvas_add_tag()}
         bind:value={tagInput}
         onkeydown={(e) => {
           if (e.key === "Enter") addTag();
@@ -296,7 +297,7 @@
         type="button"
         class="add-tag"
         onclick={startTagInput}
-        aria-label="Add tag"
+        aria-label={m.note_canvas_add_tag_aria()}
       >
         <Tag size={11} /> add tag
       </button>
@@ -337,16 +338,19 @@
 <!-- Icons used in dropdown items above -->
 
 <script module lang="ts">
+  import { m, i18n } from "$lib/i18n";
   function label(s: "idle" | "saving" | "saved" | "dirty" | "error", last: Date | null): string {
-    if (s === "saving") return "Saving…";
-    if (s === "dirty") return "Unsaved changes";
-    if (s === "error") return "Save failed";
-    if (s === "saved" && last) return `Saved ${last.toLocaleTimeString()}`;
-    return "All changes saved";
+    if (s === "saving") return m.editor_status_saving();
+    if (s === "dirty") return m.editor_status_dirty();
+    if (s === "error") return m.editor_status_error();
+    if (s === "saved" && last) return m.editor_status_saved_at({
+      time: last.toLocaleTimeString(i18n.locale),
+    });
+    return m.editor_status_saved();
   }
   function readingTime(words: number): string {
-    const m = Math.max(1, Math.round(words / 200));
-    return `${m} min`;
+    const min = Math.max(1, Math.round(words / 200));
+    return m.editor_details_minutes({ minutes: min });
   }
 </script>
 

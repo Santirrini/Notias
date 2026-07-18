@@ -21,7 +21,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { calendarList, calendarPull, calendarCreate } from "$lib/ipc";
   import type { CalendarEvent } from "$lib/types";
-  import { m, localizeError } from "$lib/i18n";
+  import { m, localizeError, i18n } from "$lib/i18n";
 
   let events = $state<CalendarEvent[]>([]);
   let busy = $state(false);
@@ -59,7 +59,7 @@
     const r = await calendarPull(7);
     busy = false;
     if (r.ok) {
-      status = `Pulled ${r.value} events`;
+      status = m.calendar_status_pulled({ count: r.value });
       await refresh();
       return;
     }
@@ -68,7 +68,7 @@
       err = null;
       return;
     }
-    err = r.error;
+    err = localizeError({ code: r.code, message: r.error });
   }
 
   async function create() {
@@ -83,7 +83,7 @@
     if (r.ok) {
       summary = "";
       description = "";
-      status = "Event created";
+      status = m.calendar_status_event_created();
       await refresh();
       return;
     }
@@ -91,19 +91,19 @@
       offline = true;
       return;
     }
-    err = r.error;
+    err = localizeError({ code: r.code, message: r.error });
   }
 
   function fmt(iso: string): { date: string; time: string } {
     try {
       const d = new Date(iso);
       return {
-        date: d.toLocaleDateString(undefined, {
+        date: d.toLocaleDateString(i18n.locale, {
           weekday: "short",
           month: "short",
           day: "numeric",
         }),
-        time: d.toLocaleTimeString(undefined, {
+        time: d.toLocaleTimeString(i18n.locale, {
           hour: "2-digit",
           minute: "2-digit",
         }),
@@ -117,10 +117,12 @@
     try {
       const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
       const mins = Math.round(ms / 60_000);
-      if (mins < 60) return `${mins}m`;
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return m === 0 ? `${h}h` : `${h}h ${m}m`;
+      if (mins < 60) return m.calendar_duration_minutes({ mins });
+      const hours = Math.floor(mins / 60);
+      const left = mins % 60;
+      return left === 0
+        ? m.calendar_duration_hours_only({ hours })
+        : m.calendar_duration_hours_minutes({ hours, minutes: left });
     } catch {
       return "";
     }
@@ -145,11 +147,11 @@
   onMount(refresh);
 </script>
 
-<PageHeader title="Calendar" description="Pull events from Google or add them locally.">
+<PageHeader title={m.calendar_page_title()} description={m.calendar_page_description()}>
   {#snippet icon()}<Calendar size={22} />{/snippet}
   <Button onclick={pull} disabled={busy || offline}>
     <RefreshCw size={14} class={busy ? "animate-spin" : ""} />
-    {busy ? "Syncing…" : "Sync now"}
+    {busy ? m.calendar_syncing() : m.calendar_sync_now()}
   </Button>
 </PageHeader>
 
@@ -170,47 +172,49 @@
   {/if}
 
   <div class="grid">
-    <SectionCard title="Create event" description="Events created here stay in your local mirror.">
+    <SectionCard title={m.calendar_create_title()} description={m.calendar_create_description()}>
       {#snippet icon()}<CalendarPlus size={14} />{/snippet}
       <form onsubmit={(e) => { e.preventDefault(); create(); }}>
         <div class="field">
-          <Label for="cal-summary">Summary</Label>
-          <Input id="cal-summary" bind:value={summary} required placeholder="Team sync" />
+          <Label for="cal-summary">{m.calendar_field_summary()}</Label>
+          <Input id="cal-summary" bind:value={summary} required placeholder={m.calendar_placeholder_summary()} />
         </div>
         <div class="field">
-          <Label for="cal-desc">Description</Label>
-          <Input id="cal-desc" bind:value={description} placeholder="Optional" />
+          <Label for="cal-desc">{m.calendar_field_description()}</Label>
+          <Input id="cal-desc" bind:value={description} placeholder={m.calendar_field_optional()} />
         </div>
         <div class="field-row">
           <div class="field">
-            <Label for="cal-date">Date</Label>
+            <Label for="cal-date">{m.calendar_field_date()}</Label>
             <Input id="cal-date" type="date" bind:value={date} />
           </div>
           <div class="field">
-            <Label for="cal-start">Start</Label>
+            <Label for="cal-start">{m.calendar_field_start()}</Label>
             <Input id="cal-start" type="time" bind:value={startTime} />
           </div>
           <div class="field">
-            <Label for="cal-end">End</Label>
+            <Label for="cal-end">{m.calendar_field_end()}</Label>
             <Input id="cal-end" type="time" bind:value={endTime} />
           </div>
         </div>
         <Button type="submit" disabled={busy || !summary.trim() || offline}>
-          <Plus size={14} /> Create
+          <Plus size={14} /> {m.common_create()}
         </Button>
       </form>
     </SectionCard>
 
-    <SectionCard title="Events" description="{sortedEvents.length} in your mirror">
+    <SectionCard title={m.calendar_events_title()} description={m.calendar_events_description({ count: sortedEvents.length })}>
       {#snippet icon()}<CalendarDays size={14} />{/snippet}
       {#if sortedEvents.length === 0}
         <div class="empty">
           <span class="empty-icon"><Calendar size={28} /></span>
           <p>
             {#if offline}
-              Backend not reachable — events will appear here once Tauri is up.
+              {m.calendar_empty_offline()}
             {:else}
-              No events yet. Click <strong>Sync now</strong> to pull from Google, or create one.
+              {@html m.calendar_empty_online({
+                sync: `<strong>${m.calendar_sync_now()}</strong>`,
+              })}
             {/if}
           </p>
         </div>
@@ -228,7 +232,7 @@
               <div class="ev-body">
                 <div class="ev-head">
                   <strong>{ev.summary}</strong>
-                  {#if today}<Badge class="today-badge">Today</Badge>{/if}
+                  {#if today}<Badge class="today-badge">{m.dates_today()}</Badge>{/if}
                   <Badge variant="outline" class="src-badge">{ev.source}</Badge>
                 </div>
                 <p class="when">

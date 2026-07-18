@@ -17,9 +17,18 @@
   import { recoveryRequired } from "$lib/ipc";
   import { sections } from "$lib/stores/sections.svelte";
   import { backend } from "$lib/stores/backend.svelte";
+  import { i18n } from "$lib/i18n";
+  import { detectInitialLocale } from "$lib/i18n/detect";
 
   let { children } = $props();
   let recovery = $state(false);
+
+  // Reactive <html lang> for accessibility (screen readers).
+  $effect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = i18n.locale;
+    }
+  });
 
   // Responsive state.
   let viewport = $state<"wide" | "medium" | "narrow">("wide");
@@ -40,6 +49,16 @@
   }
 
   onMount(async () => {
+    // 1) Detect UI language (localStorage → OS locale → navigator → base).
+    //    Awaits Tauri IPC only when available; otherwise synchronously falls
+    //    back to the navigator. Doing this BEFORE other hydrate() calls
+    //    means React/Svelte components rendered during `hydrate()` already
+    //    see the right language.
+    if (browser) {
+      const lang = await detectInitialLocale();
+      i18n.set(lang, { persist: false });
+    }
+
     sections.hydrate();
 
     // Recovery check is best-effort; safeInvoke swallows both offline and

@@ -52,7 +52,7 @@ export const backend = new BackendStore();
 
 export type InvokeResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string; offline: boolean };
+  | { ok: false; error: string; offline: boolean; code?: string };
 
 /**
    * Wrap Tauri invoke with offline-awareness. When run in the plain browser,
@@ -76,9 +76,27 @@ export async function safeInvoke<T>(
     if (!backend.available) backend.setAvailable();
     return { ok: true, value };
   } catch (e) {
-      const message =
-        (e as { message?: string })?.message ??
-        (typeof e === "string" ? e : "Unknown IPC error");
+      // Tauri rejects with `{ name, message, stack }` where `message` is the
+      // JSON-serialized shape of the Rust error. Our Rust `AppError::Serialize`
+      // impl emits `{ code, message }`. Extract both so callers can localize
+      // by code via `$lib/i18n/errors::localizeError`.
+      const raw = e as { message?: unknown; stack?: unknown };
+      let code: string | undefined;
+      let message = typeof raw.message === "string" ? raw.message : "";
+      if (typeof raw.message === "string") {
+        try {
+          const parsed = JSON.parse(raw.message) as { code?: unknown; message?: unknown };
+          if (typeof parsed === "object" && parsed !== null) {
+            if (typeof parsed.code === "string") code = parsed.code;
+            if (typeof parsed.message === "string") message = parsed.message;
+          }
+        } catch {
+          // Message isn't JSON — keep the raw string for downstream display.
+        }
+      }
+      if (!message) {
+        message = typeof e === "string" ? e : "Unknown IPC error";
+      }
       backend.recordError(message);
       // Surface real IPC failures (not offline-mode) on the dev overlay so
       // a thrown command doesn't disappear silently. Gated by DEV to avoid
@@ -89,7 +107,7 @@ export async function safeInvoke<T>(
             new CustomEvent("notias:error", {
               detail: {
                 message: `IPC ${cmd}: ${message}`,
-                stack: (e as { stack?: string })?.stack,
+                stack: raw.stack as string | undefined,
                 pathname: window.location.pathname,
               },
             }),
@@ -98,7 +116,7 @@ export async function safeInvoke<T>(
           /* never let dispatchEvent escape */
         }
       }
-      return { ok: false, offline: false, error: message };
+      return { ok: false, offline: false, error: message, code };
     }
   }
 

@@ -49,6 +49,7 @@
     "allow-sync-export-zip",
     "allow-sync-import-zip",
     "allow-sync-rebuild-now",
-    "fs:default"
+    "fs:default",
+    "os:default"
   ]
 }

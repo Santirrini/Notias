@@ -15,6 +15,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { tick } from "svelte";
+  import { m } from "$lib/i18n";
 
   const PALETTE = [
     "#0078d4",
@@ -87,10 +88,10 @@
 </script>
 
 <Tooltip.Provider delayDuration={250}>
-  <aside class="sections" aria-label="Sections">
+  <aside class="sections" aria-label={m.sections_aria()}>
     <header>
       <Notebook size={14} />
-      <span class="notebook-name">Notebook</span>
+      <span class="notebook-name">{m.sections_title()}</span>
     </header>
 
     <div class="tabs" role="tablist">
@@ -132,7 +133,7 @@
                     <button
                       type="button"
                       class="more"
-                      aria-label={`Actions for ${s.name}`}
+                      aria-label={m.sections_actions_for({ name: s.name })}
                       {...props}
                     >
                       <MoreHorizontal size={12} />
@@ -141,18 +142,18 @@
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content align="end" sideOffset={4} class="w-44">
                   <DropdownMenu.Item onclick={() => startRename(s.name)}>
-                    <Pencil size={12} /> Rename
+                    <Pencil size={12} /> {m.sections_rename()}
                   </DropdownMenu.Item>
                   <DropdownMenu.Item onclick={() => sections.togglePin(s.name)}>
                     {#if s.pinned}
-                      <PinOff size={12} /> Unpin
+                      <PinOff size={12} /> {m.sections_unpin()}
                     {:else}
-                      <Pin size={12} /> Pin to top
+                      <Pin size={12} /> {m.sections_pin_to_top()}
                     {/if}
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator />
                   <DropdownMenu.Item variant="destructive" onclick={() => remove(s.name)}>
-                    <Trash2 size={12} /> Delete section
+                    <Trash2 size={12} /> {m.sections_delete()}
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
@@ -167,8 +168,8 @@
         <Input
           bind:ref={draftInputRef}
           bind:value={draft}
-          placeholder="Section name"
-          aria-label="New section name"
+          placeholder={m.sections_section_name_placeholder()}
+          aria-label={m.sections_aria_new_name()}
           onkeydown={(e: KeyboardEvent) => {
             if (e.key === "Enter") commit();
             if (e.key === "Escape") cancel();
@@ -177,7 +178,7 @@
         />
       {:else}
         <Button variant="ghost" size="sm" onclick={start} class="w-full justify-start">
-          <Plus size={14} /> New section
+          <Plus size={14} /> {m.sections_new_section()}
         </Button>
       {/if}
     </div>

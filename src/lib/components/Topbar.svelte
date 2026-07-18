@@ -26,6 +26,7 @@
   import { backend } from "$lib/stores/backend.svelte";
   import { toast } from "svelte-sonner";
   import type { NoteSummary } from "$lib/types";
+  import { m, localizeError, i18n } from "$lib/i18n";
 
   let { onopenlist }: { onopenlist?: () => void } = $props();
 
@@ -34,7 +35,11 @@
   let focused = $state(false);
   let open = $state(false);
 
-  type NavItem = { href: string; label: string; icon: typeof IconType };
+  type NavItem = {
+    href: string;
+    labelKey: "nav_notes" | "nav_chat" | "nav_calendar" | "nav_tasks" | "nav_study" | "nav_settings";
+    icon: typeof IconType;
+  };
   type SearchAction = {
     id: string;
     label: string;
@@ -46,13 +51,17 @@
   };
 
   const NAV_ITEMS: NavItem[] = [
-    { href: "/notes", label: "Notes", icon: NotebookText },
-    { href: "/chat", label: "Chat", icon: MessageSquare },
-    { href: "/calendar", label: "Calendar", icon: Calendar },
-    { href: "/tasks", label: "Tasks", icon: ListTodo },
-    { href: "/study", label: "Study", icon: GraduationCap },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/notes", labelKey: "nav_notes", icon: NotebookText },
+    { href: "/chat", labelKey: "nav_chat", icon: MessageSquare },
+    { href: "/calendar", labelKey: "nav_calendar", icon: Calendar },
+    { href: "/tasks", labelKey: "nav_tasks", icon: ListTodo },
+    { href: "/study", labelKey: "nav_study", icon: GraduationCap },
+    { href: "/settings", labelKey: "nav_settings", icon: Settings },
   ];
+
+  function labelOf(item: NavItem): string {
+    return m[item.labelKey]();
+  }
 
   const noteResults = $state<NoteSummary[]>([]);
   let searching = $state(false);
@@ -119,13 +128,13 @@
   }
 
   async function quickCreate() {
-    const n = await notes.create("Untitled");
+    const n = await notes.create(m.topbar_untitled());
     if (n) {
       closeResults();
       goto(`/notes/${n.id}`);
       return;
     }
-    toast.error(notes.lastError ?? "Could not create page");
+    toast.error(notes.lastError ? localizeError({ message: notes.lastError }) : m.topbar_could_not_create());
   }
 
   function matchScore(haystack: string, needle: string): number {
@@ -141,7 +150,7 @@
   const filteredNav = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (!q) return NAV_ITEMS;
-    return NAV_ITEMS.filter((n) => n.label.toLowerCase().includes(q));
+    return NAV_ITEMS.filter((n) => labelOf(n).toLowerCase().includes(q));
   });
 
   const noteActions: SearchAction[] = $derived.by(() => {
@@ -149,7 +158,7 @@
     if (noteResults.length > 0) {
       out.push({
         id: "create-page",
-        label: "Create new page",
+        label: m.palette_action_create_page(),
         group: "Notes actions",
         icon: Plus,
         shortcut: "Ctrl N",
@@ -158,7 +167,7 @@
     } else if (!query.trim()) {
       out.push({
         id: "create-page",
-        label: "Create new page",
+        label: m.palette_action_create_page(),
         group: "Notes actions",
         icon: Plus,
         shortcut: "Ctrl N",
@@ -179,7 +188,7 @@
       items.push({
         kind: "note",
         id: n.id,
-        title: n.title || "Untitled",
+        title: n.title || m.topbar_untitled(),
         tags: n.tags,
         updated: n.updated,
       });
@@ -306,7 +315,7 @@
 
 <header class="topbar">
   {#if onopenlist}
-    <button type="button" class="list-toggle" onclick={onopenlist} aria-label="Toggle pages list">
+    <button type="button" class="list-toggle" onclick={onopenlist} aria-label={m.topbar_toggle_pages()}>
       <Menu size={18} />
     </button>
   {/if}
@@ -316,31 +325,31 @@
     <input
       bind:this={inputEl}
       type="search"
-      placeholder="Search notes, jump anywhere, run commands…"
+      placeholder={m.topbar_search_placeholder()}
       value={query}
       oninput={onInput}
       onfocus={onFocus}
       onblur={onBlur}
-      aria-label="Search notes"
+      aria-label={m.topbar_search_aria()}
       autocomplete="off"
       spellcheck="false"
     />
     {#if query}
-      <button type="button" class="clear" onclick={clearQuery} aria-label="Clear search">
+      <button type="button" class="clear" onclick={clearQuery} aria-label={m.topbar_clear_search()}>
         <span class="kbd-clear">Esc</span>
       </button>
     {:else}
-      <button type="button" class="kbd-btn" onclick={openPalette} aria-label="Open command palette">
+      <button type="button" class="kbd-btn" onclick={openPalette} aria-label={m.topbar_open_palette()}>
         <Kbd><Command size={10} /> K</Kbd>
       </button>
     {/if}
 
     {#if open && (query.trim() || noteResults.length > 0 || noteActions.length > 0)}
-      <div class="dropdown" role="listbox" aria-label="Search results">
+      <div class="dropdown" role="listbox" aria-label={m.topbar_search_aria()}>
         {#if noteResults.length > 0}
           <section>
             <h3>
-              <FileText size={11} /> Pages
+              <FileText size={11} /> {m.topbar_section_pages()}
               <span class="count">{noteResults.length}</span>
             </h3>
             <ul>
@@ -355,14 +364,14 @@
                   >
                     <span class="result-icon"><FileText size={14} /></span>
                     <span class="result-body">
-                      <span class="title">{@html highlight(n.title || "Untitled", query)}</span>
+                      <span class="title">{@html highlight(n.title || m.topbar_untitled(), query)}</span>
                       <span class="meta">
                         {#if n.tags.length}
                           {#each n.tags.slice(0, 3) as t}
                             <span class="tag-chip"><Hash size={9} />{t}</span>
                           {/each}
                         {/if}
-                        <span class="time">· {new Date(n.updated).toLocaleDateString()}</span>
+                        <span class="time">· {new Date(n.updated).toLocaleDateString(i18n.locale)}</span>
                       </span>
                     </span>
                     <ArrowRight size={12} class="arrow" />
@@ -376,7 +385,7 @@
         {#if noteActions.length > 0}
           <section>
             <h3>
-              <Sparkles size={11} /> Actions
+              <Sparkles size={11} /> {m.topbar_section_actions()}
             </h3>
             <ul>
               {#each noteActions as a, i (a.id)}
@@ -405,7 +414,7 @@
         {#if filteredNav.length > 0}
           <section>
             <h3>
-              <ArrowRight size={11} /> Navigate
+              <ArrowRight size={11} /> {m.topbar_section_navigate()}
             </h3>
             <ul>
               {#each filteredNav as nav, i (nav.href)}
@@ -420,7 +429,7 @@
                   >
                     <span class="result-icon"><nav.icon size={14} /></span>
                     <span class="result-body">
-                      <span class="title">Go to {nav.label}</span>
+                      <span class="title">{m.topbar_go_to({ label: labelOf(nav) })}</span>
                     </span>
                     <span class="hint-kbd">/{nav.href.slice(1)}</span>
                   </button>
@@ -432,9 +441,9 @@
 
         {#if query.trim() && noteResults.length === 0 && filteredNav.length === 0 && !searching}
           <div class="empty">
-            <p>No matches for <strong>"{query}"</strong></p>
+            <p>{@html m.topbar_no_matches({ query: `"${escapeHtml(query)}"` })}</p>
             <button type="button" class="empty-cta" onclick={quickCreate}>
-              <Plus size={12} /> Create page
+              <Plus size={12} /> {m.topbar_create_page()}
             </button>
           </div>
         {/if}
@@ -443,8 +452,16 @@
 
     {#if showHint}
       <div class="dropdown hint-dropdown">
-        <p class="hint-line"><Kbd>↑</Kbd><Kbd>↓</Kbd> to navigate, <Kbd>Enter</Kbd> to open, <Kbd>Esc</Kbd> to clear</p>
-        <p class="hint-line">Try: <em>meeting</em>, <em>Go to</em>, <em>Toggle theme</em></p>
+        <p class="hint-line">
+          <Kbd>↑</Kbd><Kbd>↓</Kbd> {m.topbar_hint_navigate({ up: "", down: "", enter: m.common_save(), esc: "Esc" })}
+        </p>
+        <p class="hint-line">
+          {m.topbar_hint_try({
+            example1: m.topbar_example_meeting(),
+            example2: m.topbar_example_goto(),
+            example3: m.topbar_example_theme(),
+          })}
+        </p>
       </div>
     {/if}
   </div>
@@ -454,8 +471,8 @@
       variant="ghost"
       size="icon"
       onclick={toggleMode}
-      aria-label="Toggle theme"
-      title={mode.current === "dark" ? "Switch to light" : "Switch to dark"}
+      aria-label={m.topbar_toggle_theme()}
+      title={mode.current === "dark" ? m.topbar_switch_to_light() : m.topbar_switch_to_dark()}
     >
       {#if mode.current === "dark"}
         <Sun size={16} />
@@ -747,14 +764,6 @@
   }
   .hint-line + .hint-line {
     margin-top: 0.25rem;
-  }
-  .hint-line em {
-    background: var(--color-muted);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-style: normal;
-    font-size: 0.7rem;
-    margin: 0 1px;
   }
 
   .actions {

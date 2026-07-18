@@ -13,21 +13,23 @@
   } from "@lucide/svelte";
   import { cn } from "$lib/utils.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import { m } from "$lib/i18n";
 
   type Item = {
     href: string;
-    label: string;
+    /** Identifier of the i18n key without the `nav_` prefix. */
+    labelKey: "nav_notes" | "nav_chat" | "nav_calendar" | "nav_tasks" | "nav_study" | "nav_settings";
     icon: typeof IconType;
     match?: (path: string) => boolean;
   };
 
   const items: Item[] = [
-    { href: "/notes", label: "Notes", icon: NotebookText, match: (p) => p.startsWith("/notes") },
-    { href: "/chat", label: "Chat", icon: MessageSquare },
-    { href: "/calendar", label: "Calendar", icon: Calendar },
-    { href: "/tasks", label: "Tasks", icon: ListTodo },
-    { href: "/study", label: "Study", icon: GraduationCap },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/notes", labelKey: "nav_notes", icon: NotebookText, match: (p) => p.startsWith("/notes") },
+    { href: "/chat", labelKey: "nav_chat", icon: MessageSquare },
+    { href: "/calendar", labelKey: "nav_calendar", icon: Calendar },
+    { href: "/tasks", labelKey: "nav_tasks", icon: ListTodo },
+    { href: "/study", labelKey: "nav_study", icon: GraduationCap },
+    { href: "/settings", labelKey: "nav_settings", icon: Settings },
   ];
 
   let {
@@ -47,13 +49,19 @@
     collapsed = !collapsed;
     ontoggle?.();
   }
+
+  // Reactive label resolution: `i18n.locale` change triggers re-evaluation of
+  // every `m.nav_xxx()` call inside the markup below.
+  function label(item: Item): string {
+    return m[item.labelKey]();
+  }
 </script>
 
 <Tooltip.Provider delayDuration={120} skipDelayDuration={300}>
-  <aside class={cn("rail", collapsed && "collapsed")} aria-label="Primary">
-    <a class="brand" href="/notes" aria-label="Notias home">
+  <aside class={cn("rail", collapsed && "collapsed")} aria-label={m.nav_aria_primary()}>
+    <a class="brand" href="/notes" aria-label={m.nav_aria_home()}>
       <span class="logo" aria-hidden="true">N</span>
-      {#if !collapsed}<span class="title">Notias</span>{/if}
+      {#if !collapsed}<span class="title">{m.nav_brand_title()}</span>{/if}
     </a>
 
     <nav>
@@ -76,7 +84,7 @@
               {/snippet}
             </Tooltip.Trigger>
             <Tooltip.Content side="right" sideOffset={10}>
-              {it.label}
+              {label(it)}
             </Tooltip.Content>
           </Tooltip.Root>
         {:else}
@@ -84,12 +92,12 @@
             href={it.href}
             class={cn("item", active && "active")}
             aria-current={active ? "page" : undefined}
-            aria-label={it.label}
+            aria-label={label(it)}
           >
             <span class="item-icon">
               <it.icon size={20} aria-hidden="true" />
             </span>
-            <span class="item-label">{it.label}</span>
+            <span class="item-label">{label(it)}</span>
           </a>
         {/if}
       {/each}
@@ -101,7 +109,7 @@
           <button
             class="toggle"
             type="button"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? m.nav_expand_sidebar() : m.nav_collapse_sidebar()}
             onclick={toggle}
             {...props}
           >
@@ -114,7 +122,7 @@
         {/snippet}
       </Tooltip.Trigger>
       <Tooltip.Content side="right" sideOffset={10}>
-        {collapsed ? "Expand" : "Collapse"}
+        {collapsed ? m.nav_expand() : m.nav_collapse()}
       </Tooltip.Content>
     </Tooltip.Root>
   </aside>

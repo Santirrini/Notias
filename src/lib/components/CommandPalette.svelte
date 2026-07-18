@@ -26,10 +26,19 @@
   import { notes } from "$lib/stores/notes.svelte";
   import { rebuildIndex, syncExportZip, syncImportZip } from "$lib/ipc";
   import type { NoteSummary } from "$lib/types";
+  import { m, localizeError, isOffline, i18n } from "$lib/i18n";
 
-  type NavItem = { href: string; label: string; icon: typeof IconType };
+  type NavItem = {
+    href: string;
+    labelKey: "nav_notes" | "nav_chat" | "nav_calendar" | "nav_tasks" | "nav_study" | "nav_settings";
+    icon: typeof IconType;
+  };
   type Action = {
     id: string;
+    /** Resolved label (already localized) — needed because the Action
+     * objects are created at module init time and can't call reactive
+     * m.*() then; we resolve per-render in the markup and at the
+     * filter step at call time. */
     label: string;
     group: "Navigate" | "Notes" | "Theme" | "Sync" | "AI";
     icon: typeof IconType;
@@ -39,13 +48,17 @@
   };
 
   const NAV_ITEMS: NavItem[] = [
-    { href: "/notes", label: "Notes", icon: NotebookText },
-    { href: "/chat", label: "Chat", icon: MessageSquare },
-    { href: "/calendar", label: "Calendar", icon: Calendar },
-    { href: "/tasks", label: "Tasks", icon: ListTodo },
-    { href: "/study", label: "Study", icon: GraduationCap },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/notes", labelKey: "nav_notes", icon: NotebookText },
+    { href: "/chat", labelKey: "nav_chat", icon: MessageSquare },
+    { href: "/calendar", labelKey: "nav_calendar", icon: Calendar },
+    { href: "/tasks", labelKey: "nav_tasks", icon: ListTodo },
+    { href: "/study", labelKey: "nav_study", icon: GraduationCap },
+    { href: "/settings", labelKey: "nav_settings", icon: Settings },
   ];
+
+  function navLabel(item: NavItem): string {
+    return m[item.labelKey]();
+  }
 
   let open = $state(false);
   let query = $state("");
@@ -69,27 +82,36 @@
   }
 
   async function newPage() {
-    const n = await notes.create("Untitled");
+    const n = await notes.create(m.topbar_untitled());
     if (n) goto(`/notes/${n.id}`);
-    else toast.error(notes.lastError ?? "Could not create page");
+    else toast.error(notes.lastError ? localizeError({ message: notes.lastError }) : m.topbar_could_not_create());
   }
 
   function jump(href: string) {
     goto(href);
   }
 
-  const baseActions: Action[] = [
-    { id: "new-page", label: "Create new page", icon: Plus, shortcut: "Ctrl N", group: "Notes", run: newPage },
+  /** Build an Action with already-localized strings. Called inside `$derived`
+   * to stay in sync with `i18n.locale`. */
+  const baseActions: Action[] = $derived.by(() => [
+    {
+      id: "new-page",
+      label: m.palette_action_create_page(),
+      icon: Plus,
+      shortcut: "Ctrl N",
+      group: "Notes",
+      run: newPage,
+    },
     ...NAV_ITEMS.map<Action>((j) => ({
       id: `jump:${j.href}`,
-      label: `Go to ${j.label}`,
+      label: m.palette_action_go_to({ label: navLabel(j) }),
       icon: j.icon,
       group: "Navigate",
       run: () => jump(j.href),
     })),
     {
       id: "theme:toggle",
-      label: "Toggle theme",
+      label: m.palette_action_toggle_theme(),
       icon: Sun,
       shortcut: "Ctrl Shift L",
       group: "Theme",
@@ -97,7 +119,7 @@
     },
     {
       id: "theme:dark",
-      label: "Switch to dark mode",
+      label: m.palette_action_switch_dark(),
       icon: Moon,
       group: "Theme",
       run: () => {
@@ -113,7 +135,7 @@
     },
     {
       id: "theme:light",
-      label: "Switch to light mode",
+      label: m.palette_action_switch_light(),
       icon: Sun,
       group: "Theme",
       run: () => {
@@ -129,31 +151,31 @@
     },
     {
       id: "rebuild-index",
-      label: "Rebuild search index",
+      label: m.palette_action_rebuild_index(),
       icon: RefreshCw,
-      description: "Rescan notes folder for new files",
+      description: m.palette_action_rebuild_index_desc(),
       group: "Sync",
       run: async () => {
         const r = await rebuildIndex();
-        if (r.ok) toast.success("Search index rebuilt");
-        else toast.error(r.offline ? "Backend offline" : r.error);
+        if (r.ok) toast.success(m.palette_toast_index_rebuilt());
+        else toast.error(localizeError({ code: r.code, message: r.error }));
       },
     },
     {
       id: "sync:export",
-      label: "Export notes as zip",
+      label: m.palette_action_export_zip(),
       icon: Download,
       group: "Sync",
       run: async () => {
         const r = await syncExportZip();
         if (r.ok)
-          toast.success("Export started", { description: "Check your downloads folder." });
-        else toast.error(r.offline ? "Backend offline" : r.error);
+          toast.success(m.palette_action_export_done(), { description: m.palette_action_export_desc() });
+        else toast.error(localizeError({ code: r.code, message: r.error }));
       },
     },
     {
       id: "sync:import",
-      label: "Import notes from zip",
+      label: m.palette_action_import_zip(),
       icon: Upload,
       group: "Sync",
       run: async () => {
@@ -166,10 +188,14 @@
           try {
             const buf = new Uint8Array(await f.arrayBuffer());
             const r = await syncImportZip(Array.from(buf));
-            if (r.ok) toast.success(`Imported ${r.value} notes`);
-            else toast.error(r.offline ? "Backend offline" : r.error);
+            if (r.ok) toast.success(m.palette_action_import_done({ count: r.value }));
+            else toast.error(localizeError({ code: r.code, message: r.error }));
           } catch (e) {
-            toast.error((e as Error).message);
+            toast.error(
+              isOffline({ error: (e as Error).message })
+                ? m.err_offline()
+                : m.err_generic({ message: (e as Error).message }),
+            );
           }
         };
         input.click();
@@ -177,20 +203,20 @@
     },
     {
       id: "ai:summarize-page",
-      label: "Summarize current page (AI)",
+      label: m.palette_action_summarize_page(),
       icon: Sparkles,
-      description: "Append a summary to the open note",
+      description: m.palette_action_summarize_page_desc(),
       group: "AI",
       run: () => goto("/settings"),
     },
     {
       id: "ai:settings",
-      label: "Open AI settings",
+      label: m.palette_action_open_ai_settings(),
       icon: Settings,
       group: "AI",
       run: () => goto("/settings"),
     },
-  ];
+  ]);
 
   const filteredActions = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -326,17 +352,33 @@
     }
     return groups;
   });
+
+  // Stable render order; group names are localized at the markup layer.
   const groupOrder = ["Navigate", "Notes", "Theme", "Sync", "AI"] as const;
+
+  /** Localized label for a palette group key (matches Action.group values). */
+  function groupLabel(g: (typeof groupOrder)[number]): string {
+    switch (g) {
+      case "Navigate":
+        return m.palette_group_navigate();
+      case "Notes":
+        return m.palette_group_notes();
+      case "Theme":
+        return m.palette_group_theme();
+      case "Sync":
+        return m.palette_group_sync();
+      case "AI":
+        return m.palette_group_ai();
+    }
+  }
 </script>
 
 <svelte:window onkeydown={onKeyDown} />
 
 <Dialog.Root open={open} onOpenChange={(v) => (open = v)}>
   <Dialog.Content class="palette">
-    <Dialog.Title class="sr-only">Command palette</Dialog.Title>
-    <Dialog.Description class="sr-only">
-      Search notes, jump to pages, run global actions
-    </Dialog.Description>
+    <Dialog.Title class="sr-only">{m.palette_aria()}</Dialog.Title>
+    <Dialog.Description class="sr-only">{m.palette_description()}</Dialog.Description>
 
     <div class="input-wrap">
       <span class="palette-icon"><Sparkles size={14} /></span>
@@ -344,8 +386,8 @@
         bind:this={inputEl}
         bind:value={query}
         oninput={(e) => onInput((e.target as HTMLInputElement).value)}
-        placeholder="Type a command or search…"
-        aria-label="Command palette"
+        placeholder={m.palette_placeholder()}
+        aria-label={m.palette_aria()}
         autocomplete="off"
         spellcheck="false"
       />
@@ -359,14 +401,18 @@
     <div class="results">
       {#if !query.trim()}
         <p class="hint">
-          Try: <em>New page</em>, <em>Toggle theme</em>, <em>Go to Settings</em>
+          {m.palette_hint_try({
+            example1: m.palette_hint_example_newpage(),
+            example2: m.palette_hint_example_theme(),
+            example3: m.palette_hint_example_settings(),
+          })}
         </p>
       {/if}
 
       {#if noteResults.length > 0}
         <section>
           <h3>
-            <FileText size={11} /> Pages
+            <FileText size={11} /> {m.palette_section_pages()}
             <span class="count">{noteResults.length}</span>
           </h3>
           <ul>
@@ -381,9 +427,9 @@
                 >
                   <span class="result-icon"><FileText size={14} /></span>
                   <span class="result-body">
-                    <span class="title">{@html highlight(n.title || "Untitled", query)}</span>
+                    <span class="title">{@html highlight(n.title || m.topbar_untitled(), query)}</span>
                     <span class="meta">
-                      {n.tags.join(", ") || "no tags"} · {new Date(n.updated).toLocaleDateString()}
+                      {n.tags.join(", ") || m.topbar_no_tags()} · {new Date(n.updated).toLocaleDateString(i18n.locale)}
                     </span>
                   </span>
                   <ArrowRight size={12} class="arrow" />
@@ -398,7 +444,7 @@
         {@const items = groupedActions[group] ?? []}
         {#if items.length > 0}
           <section>
-            <h3>{group}</h3>
+            <h3>{groupLabel(group)}</h3>
             <ul>
               {#each items as a (a.id)}
                 {@const idx = noteResults.length + filteredActions.indexOf(a)}
@@ -426,9 +472,9 @@
 
       {#if query.trim() && filteredActions.length === 0 && noteResults.length === 0}
         <div class="empty">
-          <p>No commands or pages match <strong>"{query}"</strong></p>
+          <p>{@html m.palette_no_matches({ query: `"${escapeHtml(query)}"` })}</p>
           <button type="button" class="empty-cta" onclick={() => { closeIt(); newPage(); }}>
-            <Plus size={12} /> Create page
+            <Plus size={12} /> {m.topbar_create_page()}
           </button>
         </div>
       {/if}
@@ -490,14 +536,6 @@
     padding: 0.5rem 0.875rem 0.875rem;
     font-size: 0.8125rem;
     color: var(--color-muted-foreground);
-  }
-  .hint em {
-    background: var(--color-muted);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-style: normal;
-    font-size: 0.75rem;
-    margin: 0 2px;
   }
   section {
     padding: 0.25rem 0;

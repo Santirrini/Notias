@@ -85,11 +85,26 @@ export const createNote = (title: string) =>
 
 export const updateNote = (
   id: string,
-  patch: { title?: string; body?: string },
+  patch: {
+    title?: string;
+    body?: string;
+    paper?: string | null;
+    paperTint?: string | null;
+    editorFont?: string | null;
+    editorFontSize?: string | null;
+    editorLineHeight?: string | null;
+    editorPageWidth?: string | null;
+  },
 ) => safeInvoke<Note>("update_note", {
   id,
   title: patch.title,
   body: patch.body,
+  paper: patch.paper,
+  paper_tint: patch.paperTint,
+  editor_font: patch.editorFont,
+  editor_font_size: patch.editorFontSize,
+  editor_line_height: patch.editorLineHeight,
+  editor_page_width: patch.editorPageWidth,
 });
 
 export const deleteNote = (id: string) =>
@@ -251,6 +266,41 @@ export const calendarCreate = (
 
 export const calendarList = () =>
   safeInvoke<CalendarEvent[]>("calendar_list");
+
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 6 — drawing attachments (Excalidraw)
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Write the SVG (display) and `.excalidraw` JSON (re-editable) blobs for a
+ *  drawing. Returns the SVG's relative path under `notes_dir` — embed it as
+ *  the markdown image src. */
+export const saveDrawing = (input: {
+  noteId: string;
+  drawingId: string;
+  svg: Uint8Array | number[];
+  state: Uint8Array | number[];
+}) =>
+  safeInvoke<string>("save_drawing", {
+    noteId: input.noteId,
+    drawingId: input.drawingId,
+    svg: Array.isArray(input.svg) ? input.svg : Array.from(input.svg),
+    state: Array.isArray(input.state)
+      ? input.state
+      : Array.from(input.state),
+  });
+
+/** Read the SVG bytes for a drawing by its relative path. Used by the editor
+ *  to refresh the inline preview after a re-export (not currently needed but
+ *  kept for parity with the backend API). */
+export const readDrawing = (path: string) =>
+  safeInvoke<Uint8Array>("read_drawing", { path });
+
+/** Read the `.excalidraw` JSON to re-open a drawing in the editor. */
+export const readDrawingState = (path: string) =>
+  safeInvoke<Uint8Array>("read_drawing_state", { path });
+
+export const deleteDrawing = (path: string) =>
+  safeInvoke<void>("delete_drawing", { path });
 
 // ──────────────────────────────────────────────────────────────────────────
 // Legacy alias — keep so any caller still importing `WireError` type keeps

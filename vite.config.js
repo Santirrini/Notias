@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
 // @ts-expect-error process is a nodejs global
@@ -11,6 +12,7 @@ export default defineConfig(async () => ({
   plugins: [
     tailwindcss(),
     sveltekit(),
+    react(),
     paraglideVitePlugin({
       project: "./project.inlang",
       outdir: "./src/lib/paraglide",
@@ -38,5 +40,11 @@ export default defineConfig(async () => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+  },
+
+  // Excalidraw ships as ESM with pre-bundled deps that sometimes trip
+  // optimizeDeps in dev. Pre-bundling it explicitly avoids the 30s cold start.
+  optimizeDeps: {
+    include: ["react", "react-dom", "@excalidraw/excalidraw"],
   },
 }));

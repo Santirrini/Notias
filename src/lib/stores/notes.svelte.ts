@@ -7,7 +7,7 @@ import {
   getNote,
   updateNote,
 } from "$lib/ipc";
-import type { Note, NoteSummary } from "$lib/types";
+import type { Note, NoteFrontmatter, NoteSummary } from "$lib/types";
 
 const LOCAL_KEY = "notias.localNotes.v1";
 
@@ -180,7 +180,23 @@ class NotesStore {
     this.current = null;
   }
 
-  async save(id: string, patch: { title?: string; body?: string }) {
+  async save(
+    id: string,
+    patch: {
+      title?: string;
+      body?: string;
+      // Paper/typography overrides cross the IPC boundary as raw strings.
+      // The frontend resolver (`$lib/editor/paper.ts`) validates them against
+      // an allowlist before applying, so the store accepts strings here.
+      // `null` clears the override; `undefined` means "don't touch this field".
+      paper?: string | null;
+      paperTint?: string | null;
+      editorFont?: string | null;
+      editorFontSize?: string | null;
+      editorLineHeight?: string | null;
+      editorPageWidth?: string | null;
+    },
+  ) {
     if (isLocalId(id)) {
       const all = readLocalNotes();
       const idx = all.findIndex((n) => n.id === id);
@@ -195,7 +211,18 @@ class NotesStore {
       if (idx >= 0) all[idx] = updated;
       else all.unshift(updated);
       writeLocalNotes(all);
-      this.current = noteFromLocal(updated);
+      // Offline/local notes don't round-trip through the Rust backend, so
+      // paper/typography overrides only live in memory for the session. They
+      // reappear if the user reloads only via Settings global defaults.
+      if (this.current) {
+        if (patch.paper !== undefined) this.current.frontmatter.paper = patch.paper as NoteFrontmatter["paper"];
+        if (patch.paperTint !== undefined) this.current.frontmatter.paperTint = patch.paperTint as NoteFrontmatter["paperTint"];
+        if (patch.editorFont !== undefined) this.current.frontmatter.editorFont = patch.editorFont as NoteFrontmatter["editorFont"];
+        if (patch.editorFontSize !== undefined) this.current.frontmatter.editorFontSize = patch.editorFontSize as NoteFrontmatter["editorFontSize"];
+        if (patch.editorLineHeight !== undefined) this.current.frontmatter.editorLineHeight = patch.editorLineHeight as NoteFrontmatter["editorLineHeight"];
+        if (patch.editorPageWidth !== undefined) this.current.frontmatter.editorPageWidth = patch.editorPageWidth as NoteFrontmatter["editorPageWidth"];
+      }
+      this.current = this.current ?? noteFromLocal(updated);
       await this.refresh();
       return this.current!;
     }

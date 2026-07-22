@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-save-drawing"
+description = "Writes an Excalidraw drawing (SVG + .excalidraw JSON) under notes_dir/attachments/{note_id}/."
+commands.allow = ["save_drawing"]

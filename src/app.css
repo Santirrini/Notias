@@ -25,6 +25,20 @@
   --canvas-bg: #fffbf1;
   --canvas-gridline: #ece7da;
 
+  /* Paper tints — alternative backgrounds for the editor */
+  --paper-white-bg: #ffffff;
+  --paper-white-gridline: #e6e6e6;
+  --paper-sepia-bg: #f4ecd8;
+  --paper-sepia-gridline: #e2d8bd;
+
+  /* Editor typography — driven by Settings (defaults) and per-note overrides.
+     The resolver in src/lib/editor/paper.ts maps a token (size, font, …)
+     to these concrete CSS values. */
+  --editor-font-family: var(--font-sans);
+  --editor-font-size: 17px;
+  --editor-line-height: 1.6;
+  --editor-page-width: 880px;
+
   /* Resizable panels */
   --rail-collapsed: 48px;
   --rail-expanded: 64px;
@@ -78,6 +92,11 @@
 
   --canvas-bg: #2b2b2b;
   --canvas-gridline: #3a3a3a;
+
+  --paper-white-bg: #1f1f1f;
+  --paper-white-gridline: #2d2d2d;
+  --paper-sepia-bg: #2a2520;
+  --paper-sepia-gridline: #3a342b;
 
   --background: #1f1f1f;
   --foreground: #ffffff;
@@ -255,6 +274,8 @@
  * Utils
  * ──────────────────────────────────────────────────────────────────────────── */
 @layer utilities {
+  /* Legacy OneNote-style vertical ruling kept for callers that only need
+     gridlines without the line-height-aware alignment of `.paper-ruled`. */
   .canvas-bg {
     background-color: var(--canvas-bg);
     background-image: linear-gradient(
@@ -264,4 +285,78 @@
     );
     background-size: 28px 100%;
   }
+
+  /* Paper variants. The line-height-aware ruled/grid variants tie their
+     grid spacing to `--editor-line-height * --editor-font-size` so the text
+     baseline sits on a line. Tints are applied separately via
+     `--paper-bg` / `--paper-gridline` (see note-host in NoteCanvas). */
+
+  .paper-blank {
+    background-color: var(--paper-bg, var(--canvas-bg));
+  }
+
+  .paper-ruled {
+    background-color: var(--paper-bg, var(--canvas-bg));
+    background-image: linear-gradient(
+      to bottom,
+      var(--paper-gridline, var(--canvas-gridline)) 1px,
+      transparent 1px
+    );
+    background-size: 100% calc(var(--editor-font-size) * var(--editor-line-height));
+  }
+
+  .paper-grid {
+    background-color: var(--paper-bg, var(--canvas-bg));
+    background-image:
+      linear-gradient(
+        to right,
+        var(--paper-gridline, var(--canvas-gridline)) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        var(--paper-gridline, var(--canvas-gridline)) 1px,
+        transparent 1px
+      );
+    background-size:
+      calc(var(--editor-font-size) * var(--editor-line-height)) 100%,
+      100% calc(var(--editor-font-size) * var(--editor-line-height));
+  }
+
+  .paper-dot {
+    background-color: var(--paper-bg, var(--canvas-bg));
+    background-image: radial-gradient(
+      circle,
+      var(--paper-gridline, var(--canvas-gridline)) 1px,
+      transparent 1.5px
+    );
+    background-size: calc(var(--editor-font-size) * var(--editor-line-height))
+      calc(var(--editor-font-size) * var(--editor-line-height));
+    background-position: 0 0;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Editor — typography follows the resolver-injected CSS variables on
+ * `.editor-host` (NoteCanvas). We target `.ProseMirror` globally because
+ * the contenteditable lives one level deeper than our wrapper and there is
+ * no existing `.ProseMirror` rule in the project.
+ * ──────────────────────────────────────────────────────────────────────────── */
+.ProseMirror {
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+}
+
+/* When ruled/grid are active, normalize block margins so paragraphs sit on
+   lines instead of leaving a half-line gap. Blank/dot are unaffected. */
+.editor-host.paper-ruled .ProseMirror :is(p, h1, h2, h3, ul, ol, blockquote),
+.editor-host.paper-grid  .ProseMirror :is(p, h1, h2, h3, ul, ol, blockquote) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.editor-host.paper-ruled .ProseMirror :is(ul, ol),
+.editor-host.paper-grid  .ProseMirror :is(ul, ol) {
+  padding-left: 1.25em;
 }

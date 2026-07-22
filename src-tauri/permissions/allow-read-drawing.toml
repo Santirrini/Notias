@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-drawing"
+description = "Reads the SVG payload of an Excalidraw drawing under notes_dir/attachments/."
+commands.allow = ["read_drawing"]

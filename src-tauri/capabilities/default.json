@@ -49,6 +49,10 @@
     "allow-sync-export-zip",
     "allow-sync-import-zip",
     "allow-sync-rebuild-now",
+    "allow-save-drawing",
+    "allow-read-drawing",
+    "allow-read-drawing-state",
+    "allow-delete-drawing",
     "fs:default",
     "os:default"
   ]

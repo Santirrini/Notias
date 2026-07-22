@@ -1,3 +1,4 @@
+pub mod attachments;
 pub mod index;
 pub mod model;
 pub mod store;
@@ -43,7 +44,19 @@ pub fn create_note(title: String, state: State<'_, AppState>) -> AppResult<Note>
 }
 
 #[tauri::command]
-pub fn update_note(id: String, title: Option<String>, body: Option<String>, app: tauri::AppHandle, state: State<'_, AppState>) -> AppResult<Note> {
+pub fn update_note(
+    id: String,
+    title: Option<String>,
+    body: Option<String>,
+    paper: Option<String>,
+    paper_tint: Option<String>,
+    editor_font: Option<String>,
+    editor_font_size: Option<String>,
+    editor_line_height: Option<String>,
+    editor_page_width: Option<String>,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Note> {
     let conn = state.db_conn()?;
     let path: String = conn.query_row("SELECT path FROM notes WHERE id = ?1", rusqlite::params![id], |r| r.get(0))
         .map_err(|_| AppError::NotFound(id.clone()))?;
@@ -51,6 +64,15 @@ pub fn update_note(id: String, title: Option<String>, body: Option<String>, app:
     let mut note = store::read(std::path::Path::new(&path))?;
     if let Some(t) = title { note.frontmatter.title = t.clone(); note.title = t; }
     if let Some(b) = body { note.body = b; }
+    // Paper / typography overrides. `Some("")` clears the override (back to
+    // global default); `None` means "don't touch this field" — useful when the
+    // UI patches a single key without sending the rest.
+    apply_override(&mut note.frontmatter.paper, paper);
+    apply_override(&mut note.frontmatter.paper_tint, paper_tint);
+    apply_override(&mut note.frontmatter.editor_font, editor_font);
+    apply_override(&mut note.frontmatter.editor_font_size, editor_font_size);
+    apply_override(&mut note.frontmatter.editor_line_height, editor_line_height);
+    apply_override(&mut note.frontmatter.editor_page_width, editor_page_width);
     note.frontmatter.updated = chrono_now();
     note.frontmatter.links = wikilinks::extract_links(&note.body);
     note.frontmatter.references = wikilinks::extract_attachments(&note.body);
@@ -134,7 +156,23 @@ fn format_unix_seconds_as_rfc3339(secs: u64) -> String {
 
 fn model_frontmatter(id: &str, title: &str, now: &str) -> crate::notes::model::Frontmatter {
     use crate::notes::model::Frontmatter;
-    Frontmatter { id: id.into(), title: title.into(), tags: vec![], created: now.into(), updated: now.into(), links: vec![], references: vec![] }
+    Frontmatter {
+        id: id.into(),
+        title: title.into(),
+        created: now.into(),
+        updated: now.into(),
+        ..Default::default()
+    }
+}
+
+/// Update a single optional frontmatter field from a Tauri patch.
+/// - `None`  → leave the field as-is (UI didn't send this key).
+/// - `Some("")` → clear the override (back to global default).
+/// - `Some(v)` → set the override to `v`.
+fn apply_override(field: &mut Option<String>, patch: Option<String>) {
+    if let Some(v) = patch {
+        *field = if v.is_empty() { None } else { Some(v) };
+    }
 }
 
 #[tauri::command]
@@ -165,4 +203,41 @@ pub fn sync_rebuild_now(state: State<'_, AppState>) -> AppResult<usize> {
         crate::db::migrations::read_schema_version(&conn)?,
     );
     Ok(n)
+}
+
+// ---------------------------------------------------------------------------
+// Drawing attachments — Excalidraw SVG + editable .excalidraw JSON blobs
+// persisted under notes_dir/attachments/{note_id}/. The body of the note
+// embeds the SVG via `![](attachments/{note_id}/{drawing_id}.svg)`. The
+// existing `wikilinks::extract_attachments` scanner picks up the link and
+// tracks it in frontmatter.references automatically.
+// ---------------------------------------------------------------------------
+
+/// Write a drawing (SVG for display + .excalidraw JSON for re-editing).
+/// Returns the SVG's relative path under notes_dir — embed it as the image
+/// src in the markdown body.
+#[tauri::command]
+pub fn save_drawing(
+    note_id: String,
+    drawing_id: String,
+    svg: Vec<u8>,
+    state: Vec<u8>,
+    app_state: State<'_, AppState>,
+) -> AppResult<String> {
+    attachments::save(&app_state.paths.notes_dir, &note_id, &drawing_id, &svg, &state)
+}
+
+#[tauri::command]
+pub fn read_drawing(path: String, app_state: State<'_, AppState>) -> AppResult<Vec<u8>> {
+    attachments::read_svg(&app_state.paths.notes_dir, &path)
+}
+
+#[tauri::command]
+pub fn read_drawing_state(path: String, app_state: State<'_, AppState>) -> AppResult<Vec<u8>> {
+    attachments::read_state(&app_state.paths.notes_dir, &path)
+}
+
+#[tauri::command]
+pub fn delete_drawing(path: String, app_state: State<'_, AppState>) -> AppResult<()> {
+    attachments::delete(&app_state.paths.notes_dir, &path)
 }

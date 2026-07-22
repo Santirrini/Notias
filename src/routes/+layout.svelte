@@ -16,6 +16,7 @@
 
   import { recoveryRequired } from "$lib/ipc";
   import { sections } from "$lib/stores/sections.svelte";
+  import { paperPrefs } from "$lib/stores/paper.svelte";
   import { backend } from "$lib/stores/backend.svelte";
   import { i18n } from "$lib/i18n";
   import { detectInitialLocale } from "$lib/i18n/detect";
@@ -60,6 +61,7 @@
     }
 
     sections.hydrate();
+    paperPrefs.hydrate();
 
     // Recovery check is best-effort; safeInvoke swallows both offline and
     // backend errors so the banner only appears when we genuinely need to

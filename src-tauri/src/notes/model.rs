@@ -1,6 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// Frontmatter keys are stored on disk in camelCase to match the rest of the
+/// YAML (e.g. `paperTint`, `editorFont`) and the Svelte side. `serde_yaml`
+/// doesn't translate casing by default, so we rename the snake_case Rust
+/// fields explicitly. Existing keys (`id, title, tags, created, updated,
+/// links, references`) keep their original YAML spelling.
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Frontmatter {
     pub id: String,
     pub title: String,
@@ -12,6 +18,18 @@ pub struct Frontmatter {
     pub links: Vec<String>,
     #[serde(default)]
     pub references: Vec<String>,
+    #[serde(default)]
+    pub paper: Option<String>,
+    #[serde(default)]
+    pub paper_tint: Option<String>,
+    #[serde(default)]
+    pub editor_font: Option<String>,
+    #[serde(default)]
+    pub editor_font_size: Option<String>,
+    #[serde(default)]
+    pub editor_line_height: Option<String>,
+    #[serde(default)]
+    pub editor_page_width: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

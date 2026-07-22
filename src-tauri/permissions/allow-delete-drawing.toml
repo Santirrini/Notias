@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-delete-drawing"
+description = "Deletes both files of an Excalidraw drawing under notes_dir/attachments/."
+commands.allow = ["delete_drawing"]

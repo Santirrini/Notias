@@ -204,11 +204,9 @@ mod tests {
             frontmatter: Frontmatter {
                 id: id.into(),
                 title: id.into(),
-                tags: vec![],
                 created: "2026-07-06T00:00:00Z".into(),
                 updated: "2026-07-06T00:00:00Z".into(),
-                links: vec![],
-                references: vec![],
+                ..Default::default()
             },
         }
     }

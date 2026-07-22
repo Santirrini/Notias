@@ -113,8 +113,7 @@ mod tests {
                 tags: vec!["x".into()],
                 created: "2026-07-03T00:00:00Z".into(),
                 updated: "2026-07-03T00:00:00Z".into(),
-                links: vec![],
-                references: vec![],
+                ..Default::default()
             },
         }
     }

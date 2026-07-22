@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-drawing-state"
+description = "Reads the editable .excalidraw JSON for re-opening a drawing in the editor."
+commands.allow = ["read_drawing_state"]

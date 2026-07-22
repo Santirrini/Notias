@@ -27,7 +27,20 @@
   import EditorStatus from "$lib/components/EditorStatus.svelte";
   import SlashMenu from "$lib/components/SlashMenu.svelte";
   import AudioRecorder from "$lib/components/AudioRecorder.svelte";
+  import { paperPrefs } from "$lib/stores/paper.svelte";
+  import {
+    resolvePaper,
+    toEditorStyle,
+    type PaperPrefs,
+    type ResolvedPaper,
+  } from "$lib/editor/paper";
   import { formatInteger } from "$lib/i18n";
+  // Lazy import so React + Excalidraw (~1MB) are not pulled into the
+  // initial bundle. The modal is only fetched when the user first opens it.
+  type ExcalidrawModalComponent = typeof import("./drawing/ExcalidrawModal.svelte").default;
+  let ExcalidrawModal = $state<ExcalidrawModalComponent | null>(null);
+  let drawingModalOpen = $state(false);
+  let editingDrawingId = $state<string | null>(null);
 
   type SaveState = "idle" | "saving" | "saved" | "dirty" | "error";
 
@@ -61,6 +74,103 @@
   const chars = $derived(body.length);
 
   const currentTags = $derived(notes.list.find((n) => n.id === id)?.tags ?? []);
+
+  // Paper / typography resolution. The resolver applies the precedence:
+  // frontmatter override → global default → hardcoded fallback, and
+  // produces both a CSS variable map and the class name to put on
+  // `.editor-host` (e.g. `paper-ruled`).
+  const resolvedPaper: ResolvedPaper = $derived(
+    resolvePaper(notes.current?.frontmatter, paperPrefs.state)
+  );
+  const paperStyle = $derived(toEditorStyle(resolvedPaper));
+  const paperOverrides = $derived(resolvedPaper.overrides);
+
+  async function setPaperField<K extends keyof PaperPrefs>(
+    key: K,
+    value: PaperPrefs[K],
+  ) {
+    // Discrete change — no debounce. Persist immediately so a reload
+    // restores the override and the IPC round-trip stays in sync.
+    await notes.save(id, { [key]: value } as Record<string, string>);
+  }
+
+  async function clearPaperOverrides() {
+    // Clear every key the note currently overrides by sending `""` (the
+    // Rust side maps that to `None`, removing the key from frontmatter).
+    const clear: Record<string, string> = {};
+    for (const k of paperOverrides) clear[k as string] = "";
+    if (Object.keys(clear).length === 0) return;
+    await notes.save(id, clear);
+  }
+
+  /** Serialize a CSS variable map to an inline style string. */
+  function cssVars(vars: Record<string, string>): string {
+    return Object.entries(vars)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(";");
+  }
+
+  // ── Drawing modal ─────────────────────────────────────────────────────
+  //
+  // Lazy-load the React + Excalidraw bundle the first time the user opens
+  // the modal. Subsequent opens reuse the cached module.
+
+  async function openDrawingNew() {
+    if (!ExcalidrawModal) {
+      const mod = await import("./drawing/ExcalidrawModal.svelte");
+      ExcalidrawModal = mod.default;
+    }
+    editingDrawingId = null;
+    drawingModalOpen = true;
+  }
+
+  function openDrawingEdit(relSvgPath: string) {
+    if (!ExcalidrawModal) {
+      void (async () => {
+        const mod = await import("./drawing/ExcalidrawModal.svelte");
+        ExcalidrawModal = mod.default;
+        editingDrawingId = relSvgPath;
+        drawingModalOpen = true;
+      })();
+      return;
+    }
+    editingDrawingId = relSvgPath;
+    drawingModalOpen = true;
+  }
+
+  function closeDrawingModal() {
+    drawingModalOpen = false;
+    editingDrawingId = null;
+  }
+
+  async function onDrawingSaved(relSvgPath: string, wasEditing: boolean) {
+    if (wasEditing) {
+      // The image is already embedded in the body — no markdown change needed.
+      // Re-rendering is a no-op since src didn't change. Toast so the user
+      // gets feedback that the save succeeded.
+      toast.success(m.drawing_save());
+      return;
+    }
+    // New drawing — embed at the cursor. Insert blank lines around so the
+    // image lands on its own paragraph.
+    const markdown = `\n\n![](${relSvgPath})\n\n`;
+    editorHandle?.insertTextAtCursor(markdown);
+  }
+
+  /** Click delegation on the editor host: detect clicks on <img> tags that
+   *  reference an Excalidraw SVG and open the modal in edit mode. */
+  function onEditorHostClick(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.tagName !== "IMG") return;
+    const img = target as HTMLImageElement;
+    const src = img.getAttribute("src") ?? img.src;
+    // Match `attachments/{noteId}/{drawingId}.svg` — the exact rel returned
+    // by the backend's save_drawing command.
+    const match = /^attachments\/[^/]+\/[^/]+\.svg$/.exec(src);
+    if (!match) return;
+    openDrawingEdit(src);
+  }
 
   function scheduleSave() {
     saveState = "dirty";
@@ -310,6 +420,14 @@
       body={body}
       title={title}
       onRecordClick={() => (audioOpen = !audioOpen)}
+      onOpenDrawing={openDrawingNew}
+      paperOverrides={paperOverrides}
+      onPaperChange={(patch) => {
+        for (const [k, v] of Object.entries(patch)) {
+          void setPaperField(k as keyof PaperPrefs, v as PaperPrefs[keyof PaperPrefs]);
+        }
+      }}
+      onPaperClear={clearPaperOverrides}
     />
   </div>
 
@@ -324,7 +442,12 @@
     </div>
   {/if}
 
-  <div class="editor-host">
+  <div
+    class="editor-host {paperStyle.classes}"
+    style={cssVars(paperStyle.style)}
+    onclick={onEditorHostClick}
+    role="presentation"
+  >
     <Milkdown
       initial={initialBody}
       bind:handle={editorHandle}
@@ -334,6 +457,17 @@
 
   <SlashMenu handle={editorHandle} body={body} title={title} />
 </article>
+
+{#if ExcalidrawModal && drawingModalOpen}
+  <ExcalidrawModal
+    open={drawingModalOpen}
+    noteId={id}
+    drawingId={editingDrawingId}
+    onSaved={(rel) =>
+      onDrawingSaved(rel, editingDrawingId !== null)}
+    onClose={closeDrawingModal}
+  />
+{/if}
 
 <!-- Icons used in dropdown items above -->
 
@@ -361,7 +495,7 @@
     gap: 0.5rem;
     padding: 1.5rem 3rem 4rem;
     width: 100%;
-    max-width: 880px;
+    max-width: var(--editor-page-width, 880px);
     margin: 0 auto;
   }
 
@@ -542,6 +676,8 @@
     border-top: 1px dashed var(--color-border);
   }
   .editor-host {
-    padding-top: 0.5rem;
+    padding: 1rem 1.5rem 2rem;
+    border-radius: var(--radius-md);
+    transition: background-color 200ms ease;
   }
 </style>

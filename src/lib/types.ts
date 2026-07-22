@@ -20,6 +20,13 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: WireError }
 
 export type NoteSummary = { id: string; title: string; updated: string; tags: string[] };
 
+export type PaperVariant = "ruled" | "grid" | "dot" | "blank";
+export type PaperTint = "white" | "warm" | "sepia";
+export type EditorFont = "serif" | "sans" | "mono";
+export type EditorSize = "sm" | "md" | "lg";
+export type EditorLineHeight = "compact" | "normal" | "relaxed";
+export type EditorPageWidth = "narrow" | "normal" | "wide";
+
 export type NoteFrontmatter = {
   id: string;
   title: string;
@@ -28,6 +35,12 @@ export type NoteFrontmatter = {
   updated: string;
   links: string[];
   references: string[];
+  paper?: PaperVariant | null;
+  paperTint?: PaperTint | null;
+  editorFont?: EditorFont | null;
+  editorFontSize?: EditorSize | null;
+  editorLineHeight?: EditorLineHeight | null;
+  editorPageWidth?: EditorPageWidth | null;
 };
 
 export type Note = {
